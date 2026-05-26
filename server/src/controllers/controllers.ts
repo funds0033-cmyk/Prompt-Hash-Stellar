@@ -275,5 +275,5 @@ export const PostChat = async (
     messages: formattedMessages,
   });
 
-  return result.toDataStreamResponse();
+  return result.pipeTextStreamToResponse(res);
 };

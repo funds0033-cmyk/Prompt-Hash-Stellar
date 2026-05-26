@@ -28,19 +28,19 @@
   "author": "wilfrid",
   "license": "MIT",
   "dependencies": {
-    "@ai-sdk/openai": "^1.2.5",
-    "@typescript-eslint/parser": "^8.46.3",
-    "ai": "^4.1.61",
-    "express": "^5.1.0",
+    "@ai-sdk/openai": "^3.0.53",
+    "@typescript-eslint/parser": "^8.59.0",
+    "ai": "^6.0.168",
+    "express": "^5.2.1",
     "express-async-handler": "^1.2.0",
-    "mongoose": "^8.19.3",
-    "nodemon": "^3.1.10",
-    "typescript": "^5.9.3",
+    "mongoose": "^9.5.0",
+    "nodemon": "^3.1.14",
+    "typescript": "^6.0.3",
     "@stellar/stellar-sdk": "^14.6.1"
   },
   "devDependencies": {
-    "@types/express": "^5.0.5",
-    "@types/node": "^24.10.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.0",
     "ts-node": "^10.9.2"
   }
 }
