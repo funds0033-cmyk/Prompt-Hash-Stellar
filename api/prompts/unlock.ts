@@ -17,6 +17,7 @@ import { withObservability } from "../../src/lib/observability/wrapper";
 import { checkRateLimit } from "../../src/lib/observability/rateLimiter";
 import { metrics } from "../../src/lib/observability/metrics";
 import { dispatchEvent } from "../../server/src/services/webhookDispatcher";
+import { recordAuditEvent } from "../../server/src/services/auditTrail";
 
 /**
  * Get active secrets for token verification
@@ -86,6 +87,15 @@ async function handler(req: any, res: any) {
   if (!ipRateLimit.success) {
     req.logger.warn({ clientIp }, "Rate limit exceeded for unlock (IP)");
     metrics.trackRateLimitHit("unlock_ip", clientIp);
+    void recordAuditEvent({
+      action: "unlock_rate_limited",
+      result: "blocked",
+      promptId: promptId ? String(promptId) : null,
+      walletAddress: address ? String(address) : null,
+      requestId: req.requestId ?? null,
+      clientIp,
+      reason: "ip_rate_limit_exceeded",
+    });
     res.setHeader("X-RateLimit-Limit", ipRateLimit.limit);
     res.setHeader("X-RateLimit-Remaining", 0);
     res.setHeader("X-RateLimit-Reset", ipRateLimit.reset);
@@ -99,6 +109,15 @@ async function handler(req: any, res: any) {
     if (!walletRateLimit.success) {
       req.logger.warn({ address }, "Rate limit exceeded for unlock (Wallet)");
       metrics.trackRateLimitHit("unlock_wallet", String(address));
+      void recordAuditEvent({
+        action: "unlock_rate_limited",
+        result: "blocked",
+        promptId: promptId ? String(promptId) : null,
+        walletAddress: String(address),
+        requestId: req.requestId ?? null,
+        clientIp,
+        reason: "wallet_rate_limit_exceeded",
+      });
       res.setHeader("X-RateLimit-Limit", walletRateLimit.limit);
       res.setHeader("X-RateLimit-Remaining", 0);
       res.setHeader("X-RateLimit-Reset", walletRateLimit.reset);
@@ -144,6 +163,15 @@ async function handler(req: any, res: any) {
     if (!validSignature) {
       req.logger.warn({ address, promptId }, "Invalid wallet signature");
       metrics.trackUnlockFailure(String(address), String(promptId), "invalid_signature");
+      void recordAuditEvent({
+        action: "unlock_invalid_signature",
+        result: "failure",
+        promptId: String(promptId),
+        walletAddress: String(address),
+        requestId: req.requestId ?? null,
+        clientIp,
+        reason: "invalid_signature",
+      });
       res.status(401).json({ error: "Invalid wallet signature." });
       return;
     }
@@ -154,6 +182,15 @@ async function handler(req: any, res: any) {
     if (!access) {
       req.logger.warn({ address, promptId }, "Prompt access denied");
       metrics.trackUnlockFailure(String(address), String(promptId), "no_access");
+      void recordAuditEvent({
+        action: "unlock_no_access",
+        result: "failure",
+        promptId: String(promptId),
+        walletAddress: String(address),
+        requestId: req.requestId ?? null,
+        clientIp,
+        reason: "no_access",
+      });
       res.status(403).json({ error: "Prompt access has not been purchased." });
       return;
     }
@@ -173,12 +210,30 @@ async function handler(req: any, res: any) {
     if (contentHash !== prompt.contentHash) {
       req.logger.error({ address, promptId }, "Prompt integrity check failed");
       metrics.trackUnlockFailure(String(address), String(promptId), "integrity_failure");
+      void recordAuditEvent({
+        action: "unlock_integrity_failure",
+        result: "failure",
+        promptId: String(promptId),
+        walletAddress: String(address),
+        requestId: req.requestId ?? null,
+        clientIp,
+        reason: "integrity_failure",
+      });
       res.status(500).json({ error: "Prompt integrity check failed." });
       return;
     }
 
     metrics.trackUnlockSuccess(String(address), String(promptId));
     req.logger.info({ address, promptId }, "Prompt unlocked successfully");
+    void recordAuditEvent({
+      action: "unlock_success",
+      result: "success",
+      promptId: String(promptId),
+      walletAddress: String(address),
+      requestId: req.requestId ?? null,
+      clientIp,
+      reason: null,
+    });
 
     // Fire-and-forget webhook dispatch so the creator is notified of the sale.
     void dispatchEvent(prompt.creator ?? "", "PromptPurchased", {
@@ -197,6 +252,19 @@ async function handler(req: any, res: any) {
     const message = error instanceof Error ? error.message : "Failed to unlock prompt.";
     req.logger.error({ address, promptId, error: message }, "Unlock attempt failed");
     metrics.trackUnlockFailure(String(address), String(promptId), "error");
+
+    // Distinguish expired-challenge errors for finer-grained audit reasons.
+    const isExpired = message.toLowerCase().includes("expired");
+    void recordAuditEvent({
+      action: isExpired ? "unlock_expired_challenge" : "unlock_error",
+      result: "failure",
+      promptId: promptId ? String(promptId) : null,
+      walletAddress: address ? String(address) : null,
+      requestId: req.requestId ?? null,
+      clientIp,
+      reason: isExpired ? "expired_challenge" : "error",
+    });
+
     res.status(400).json({ error: message });
   }
 }

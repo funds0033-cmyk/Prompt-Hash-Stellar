@@ -2,6 +2,7 @@ import { createChallengeToken } from "../../src/lib/auth/challenge";
 import { withObservability } from "../../src/lib/observability/wrapper";
 import { checkRateLimit } from "../../src/lib/observability/rateLimiter";
 import { metrics } from "../../src/lib/observability/metrics";
+import { recordAuditEvent } from "../../server/src/services/auditTrail";
 
 async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -20,6 +21,15 @@ async function handler(req: any, res: any) {
   if (!rateLimit.success) {
     req.logger.warn({ clientIp }, "Rate limit exceeded for challenge issuance");
     metrics.trackRateLimitHit("challenge", clientIp);
+    void recordAuditEvent({
+      action: "challenge_rate_limited",
+      result: "blocked",
+      promptId: address && promptId ? String(promptId) : null,
+      walletAddress: address ? String(address) : null,
+      requestId: req.requestId ?? null,
+      clientIp,
+      reason: "rate_limit_exceeded",
+    });
     res.setHeader("X-RateLimit-Limit", rateLimit.limit);
     res.setHeader("X-RateLimit-Remaining", 0);
     res.setHeader("X-RateLimit-Reset", rateLimit.reset);
@@ -50,6 +60,16 @@ async function handler(req: any, res: any) {
 
   metrics.trackChallengeIssued(String(address), String(promptId));
   req.logger.info({ address, promptId }, "Challenge token issued successfully");
+
+  void recordAuditEvent({
+    action: "challenge_issued",
+    result: "success",
+    promptId: String(promptId),
+    walletAddress: String(address),
+    requestId: req.requestId ?? null,
+    clientIp,
+    reason: null,
+  });
 
   res.status(200).json(challenge);
 }
