@@ -2,6 +2,7 @@ import { SorobanRpc, scValToNative } from "@stellar/stellar-sdk";
 import Prompt from "../models/Prompt";
 import User from "../models/User";
 import { IndexerState } from "../models/IndexerState";
+import { scanForSimilarity } from "./similarityDetection";
 
 const CONTRACT_ID = process.env.PUBLIC_PROMPT_HASH_CONTRACT_ID;
 const rpc = new SorobanRpc.Server(process.env.PUBLIC_STELLAR_RPC_URL!);
@@ -73,7 +74,7 @@ async function processEvent(event: SorobanRpc.Api.EventResponse) {
       }
 
       // handles discovery of prompts created off-platform
-      await Prompt.findOneAndUpdate(
+      const upserted = await Prompt.findOneAndUpdate(
         { onChainId: prompt_id.toString() },
         {
           $set: {
@@ -83,8 +84,16 @@ async function processEvent(event: SorobanRpc.Api.EventResponse) {
             isActive: true,
           },
         },
-        { upsert: true },
+        { upsert: true, new: true },
       );
+
+      // Run similarity scan asynchronously — never block the indexer loop.
+      if (upserted?.content) {
+        const combinedText = `${upserted.title ?? ""} ${upserted.content}`;
+        scanForSimilarity(prompt_id.toString(), combinedText).catch((err) =>
+          console.error("[similarity] Scan error for prompt", prompt_id.toString(), err),
+        );
+      }
       break;
     }
 

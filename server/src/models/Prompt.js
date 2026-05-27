@@ -54,6 +54,43 @@ const promptSchema = new mongoose.Schema(
       default: 1,
       min: 1,
     },
+    // Anti-plagiarism fields (Issue #133)
+    similarityFlag: {
+      type: String,
+      enum: ["clean", "suspicious", "highly_similar"],
+      default: "clean",
+      index: true,
+    },
+    similarityScore: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 1,
+    },
+    similarTo: {
+      // onChainId of the most similar existing prompt, if flagged.
+      type: String,
+      default: null,
+    },
+    similarityCheckedAt: {
+      type: Date,
+      default: null,
+    },
+    onChainId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    salesCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,
