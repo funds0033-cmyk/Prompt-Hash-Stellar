@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import wasm from "vite-plugin-wasm";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
+import { VitePWA } from "vite-plugin-pwa";
 // import tailwindcss from '@tailwindcss/vite';
 import path from "path";
 
@@ -18,6 +19,33 @@ export default defineConfig(() => {
         },
       }),
       wasm(),
+      VitePWA({
+        registerType: "autoUpdate",
+        includeAssets: ["favicon.ico", "apple-touch-icon.png", "icons/*.png"],
+        manifest: {
+          name: "Prompt Hash",
+          short_name: "PromptHash",
+          description: "Discover, purchase, and manage AI prompts on Stellar",
+          theme_color: "#0f172a",
+          background_color: "#0f172a",
+          display: "standalone",
+          start_url: "/",
+          icons: [
+            { src: "/icons/pwa-192x192.png", sizes: "192x192", type: "image/png" },
+            { src: "/icons/pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+          ],
+        },
+        workbox: {
+          globPatterns: ["**/*.{js,css,html,ico,png,svg,wasm}"],
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/.*\.stellar\.org\/.*/i,
+              handler: "NetworkFirst",
+              options: { cacheName: "stellar-api", networkTimeoutSeconds: 10 },
+            },
+          ],
+        },
+      }),
     ],
     resolve: {
       alias: {
