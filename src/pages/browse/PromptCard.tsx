@@ -58,14 +58,14 @@ export const PromptCard = ({
         </div>
       </div>
 
-      <CardContent className="flex flex-1 flex-col p-6 pt-5">
+      <CardContent className="flex flex-1 flex-col p-4 pt-4 sm:p-6 sm:pt-5">
         <div className="flex-1 space-y-3">
-          <div className="flex justify-between items-start gap-4">
-            <h3 className="text-lg font-bold leading-tight group-hover:text-emerald-400 transition-colors">
+          <div className="flex items-start justify-between gap-3 sm:gap-4">
+            <h3 className="text-base font-bold leading-tight transition-colors group-hover:text-emerald-400 sm:text-lg">
               {prompt.title}
             </h3>
             <div className="text-right shrink-0">
-              <p className="text-xl font-black text-white">
+              <p className="text-lg font-black text-white sm:text-xl">
                 {formatPriceLabel(prompt.priceStroops)}
               </p>
               <p className="text-[10px] text-slate-500 uppercase tracking-tighter">
@@ -93,12 +93,12 @@ export const PromptCard = ({
         </div>
 
         {/* Purchase Info Row */}
-        <div className="mt-6 pt-5 border-t border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="mt-5 flex items-center justify-between border-t border-white/5 pt-4 sm:mt-6 sm:pt-5">
+          <div className="flex min-w-0 items-center gap-2">
             <div className="h-6 w-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
             </div>
-            <p className="text-xs font-medium text-slate-400">
+            <p className="truncate text-xs font-medium text-slate-400">
               {shortenAddress(prompt.creator)}
             </p>
           </div>
