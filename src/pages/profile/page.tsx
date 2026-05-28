@@ -759,14 +759,14 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_60%_40%_at_0%_0%,rgba(34,211,238,0.1),transparent),radial-gradient(ellipse_50%_30%_at_100%_5%,rgba(251,191,36,0.07),transparent),linear-gradient(180deg,#080b0f_0%,#0d1117_50%,#080b0f_100%)] text-white">
       <Navigation />
-      <main className="mx-auto max-w-7xl px-6 py-10 space-y-8">
+      <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 sm:py-10">
         {/* Page header */}
-        <section className="flex flex-col md:flex-row md:items-center justify-between gap-6 rounded-[2rem] border border-white/10 bg-slate-950/60 p-8 shadow-[0_32px_120px_-64px_rgba(16,185,129,0.45)]">
+        <section className="flex flex-col justify-between gap-6 rounded-[2rem] border border-white/10 bg-slate-950/60 p-5 shadow-[0_32px_120px_-64px_rgba(16,185,129,0.45)] md:flex-row md:items-center md:p-8">
           <div className="space-y-4">
             <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">
               {isPublicView ? "Creator profile" : "Wallet profile"}
             </p>
-            <h1 className="text-4xl font-semibold">
+            <h1 className="text-3xl font-semibold sm:text-4xl">
               {isPublicView ? "Prompt creator" : "My prompt licenses"}
             </h1>
             <p className="max-w-xl text-sm leading-7 text-slate-300">
@@ -777,7 +777,7 @@ export default function ProfilePage() {
           </div>
 
           {address && !isPublicView && (
-            <div className="flex flex-col gap-4 rounded-3xl border border-white/5 bg-white/5 p-6 backdrop-blur-sm min-w-[300px]">
+            <div className="flex flex-col gap-4 rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-sm md:min-w-[300px] md:p-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
                   <Wallet size={20} />
@@ -812,7 +812,7 @@ export default function ProfilePage() {
 
           {/* Tip jar for public profile views */}
           {isPublicView && profileAddress && (
-            <div className="min-w-[280px]">
+            <div className="md:min-w-[280px]">
               <TipButton creatorAddress={profileAddress} />
             </div>
           )}
