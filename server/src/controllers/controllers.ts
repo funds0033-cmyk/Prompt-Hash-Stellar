@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import connectDb from "../db/connectDb";
 import User from "../models/User";
 import Prompt from "../models/Prompt";
+import Purchase from "../models/Purchase";
 import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
@@ -136,7 +137,7 @@ export const GetPrompts = async (
     const category = searchParams.get("category");
     const walletAddress = searchParams.get("walletAddress");
 
-    let query: any = {};
+    let query: any = { listingStatus: 'published', isActive: true };
 
     if (category) {
       query.category = category;
@@ -276,4 +277,194 @@ export const PostChat = async (
   });
 
   return result.pipeTextStreamToResponse(res);
+};
+
+/* BUYER COLLECTIONS CONTROLLERS */
+
+export const GetOwnedPrompts = async (
+  req: Request,
+  res: Response,
+): Promise<Response<any>> => {
+  try {
+    await connectDb();
+    const { walletAddress } = req.params;
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'walletAddress is required' });
+    }
+    const purchases = await Purchase.find({
+      buyerWallet: walletAddress.toLowerCase(),
+    })
+      .populate({ path: 'promptId', model: Prompt })
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      owned: purchases.map((p) => ({
+        purchaseId: p._id,
+        prompt: p.promptId,
+        txHash: p.txHash,
+        versionIndex: p.versionIndex,
+        purchasedAt: p.createdAt,
+      })),
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const GetSavedPrompts = async (
+  req: Request,
+  res: Response,
+): Promise<Response<any>> => {
+  try {
+    await connectDb();
+    const { walletAddress } = req.params;
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'walletAddress is required' });
+    }
+    const saved = await Purchase.find({
+      buyerWallet: walletAddress.toLowerCase(),
+      saved: true,
+    })
+      .populate({ path: 'promptId', model: Prompt })
+      .sort({ updatedAt: -1 });
+
+    return res.status(200).json({
+      saved: saved.map((p) => ({
+        purchaseId: p._id,
+        prompt: p.promptId,
+        savedAt: p.updatedAt,
+      })),
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const SavePrompt = async (
+  req: Request,
+  res: Response,
+): Promise<Response<any>> => {
+  try {
+    await connectDb();
+    const { walletAddress, promptId } = req.body;
+    if (!walletAddress || !promptId) {
+      return res.status(400).json({ error: 'walletAddress and promptId are required' });
+    }
+    const purchase = await Purchase.findOneAndUpdate(
+      { buyerWallet: walletAddress.toLowerCase(), promptId },
+      { saved: true },
+      { upsert: true, new: true },
+    );
+    return res.status(200).json({ saved: true, purchaseId: purchase._id });
+  } catch (err) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const UnsavePrompt = async (
+  req: Request,
+  res: Response,
+): Promise<Response<any>> => {
+  try {
+    await connectDb();
+    const { walletAddress, promptId } = req.body;
+    if (!walletAddress || !promptId) {
+      return res.status(400).json({ error: 'walletAddress and promptId are required' });
+    }
+    await Purchase.findOneAndUpdate(
+      { buyerWallet: walletAddress.toLowerCase(), promptId },
+      { saved: false },
+    );
+    return res.status(200).json({ saved: false });
+  } catch (err) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+/* DRAFT LIFECYCLE CONTROLLERS */
+
+const PUBLISH_REQUIRED_FIELDS = ['image', 'title', 'content', 'price', 'category'];
+
+export const GetDraftPrompts = async (
+  req: Request,
+  res: Response,
+): Promise<Response<any>> => {
+  try {
+    await connectDb();
+    const { walletAddress } = req.params;
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'walletAddress is required' });
+    }
+    const user = await User.findOne({ walletAddress: walletAddress.toLowerCase() });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const drafts = await Prompt.find({
+      owner: user._id,
+      listingStatus: { $in: ['draft', 'ready'] },
+    }).sort({ updatedAt: -1 });
+
+    return res.status(200).json({
+      drafts: drafts.map((d) => {
+        const missingFields = PUBLISH_REQUIRED_FIELDS.filter(
+          (f) => !d[f as keyof typeof d],
+        );
+        return {
+          ...d.toObject(),
+          missingFields,
+          isPublishable: missingFields.length === 0,
+        };
+      }),
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const PublishPrompt = async (
+  req: Request,
+  res: Response,
+): Promise<Response<any>> => {
+  try {
+    await connectDb();
+    const { id } = req.params;
+    const prompt = await Prompt.findById(id);
+    if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
+
+    const missingFields = PUBLISH_REQUIRED_FIELDS.filter(
+      (f) => !prompt[f as keyof typeof prompt],
+    );
+    if (missingFields.length > 0) {
+      return res.status(422).json({
+        error: 'Prompt is not publishable',
+        missingFields,
+        reason: `Required fields are missing: ${missingFields.join(', ')}`,
+      });
+    }
+
+    prompt.listingStatus = 'published';
+    await prompt.save();
+
+    return res.status(200).json({ listingStatus: 'published', promptId: prompt._id });
+  } catch (err) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+export const ArchivePrompt = async (
+  req: Request,
+  res: Response,
+): Promise<Response<any>> => {
+  try {
+    await connectDb();
+    const { id } = req.params;
+    const prompt = await Prompt.findByIdAndUpdate(
+      id,
+      { listingStatus: 'archived' },
+      { new: true },
+    );
+    if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
+    return res.status(200).json({ listingStatus: 'archived', promptId: prompt._id });
+  } catch (err) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
 };
