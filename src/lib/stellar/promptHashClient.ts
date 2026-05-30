@@ -30,6 +30,8 @@ export interface PromptRecord {
   title: string;
   category: string;
   previewText: string;
+  description?: string;
+  tags?: string[];
   imageUrl: string;
   salesCount: number;
   active: boolean;
@@ -106,6 +108,9 @@ export class PromptHashClient {
         category: "Development",
         previewText:
           "A high-performance prompt for generating system design documents...",
+        description:
+          "A full prompt designed to help architects craft scalable system blueprints and integration plans.",
+        tags: ["AI", "Architecture"],
         imageUrl: "",
         salesCount: 12,
         active: true,
@@ -119,6 +124,9 @@ export class PromptHashClient {
         category: "Creative",
         previewText:
           "Unlock deep narrative structures and character development...",
+        description:
+          "A storytelling prompt built to help craft plot outlines, characters, and emotional arcs for long-form fiction.",
+        tags: ["Storytelling", "Creative"],
         imageUrl: "",
         salesCount: 45,
         active: true,

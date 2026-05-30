@@ -11,8 +11,11 @@ import {
 
 export interface MarketplaceFiltersProps {
   categories: string[];
+  tags: string[];
   selectedCategory: string;
   setSelectedCategory: (cat: string) => void;
+  selectedTag: string;
+  setSelectedTag: (tag: string) => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   priceRange: [number, number];
@@ -26,8 +29,11 @@ const PRICE_MAX = 25;
 
 export function MarketplaceFilters({
   categories,
+  tags,
   selectedCategory,
   setSelectedCategory,
+  selectedTag,
+  setSelectedTag,
   priceRange,
   setPriceRange,
   sortBy,
@@ -36,6 +42,7 @@ export function MarketplaceFilters({
 }: MarketplaceFiltersProps) {
   const hasActiveFilters =
     Boolean(selectedCategory) ||
+    Boolean(selectedTag) ||
     sortBy !== "recent" ||
     priceRange[0] !== 0 ||
     priceRange[1] !== PRICE_MAX;
@@ -75,6 +82,39 @@ export function MarketplaceFilters({
           ))}
         </div>
       </div>
+
+      {tags.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-[10px] uppercase tracking-[0.25em] font-bold text-slate-500">
+            Tags
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Badge
+              onClick={() => setSelectedTag("")}
+              className={`cursor-pointer select-none transition-colors ${
+                !selectedTag
+                  ? "bg-slate-100 text-slate-950 hover:bg-slate-200 border-transparent"
+                  : "border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/10"
+              }`}
+            >
+              All
+            </Badge>
+            {tags.map((tag) => (
+              <Badge
+                key={tag}
+                onClick={() => setSelectedTag(selectedTag === tag ? "" : tag)}
+                className={`cursor-pointer select-none transition-colors ${
+                  selectedTag === tag
+                    ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400 border-transparent"
+                    : "border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/10"
+                }`}
+              >
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Price range — two independent range inputs */}
       <div className="space-y-4">

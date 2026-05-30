@@ -13,26 +13,30 @@ import { HeroAnimation } from "./HeroAnimation";
 const categories = Array.from(
   new Set(featuredPromptTemplates.map((prompt) => prompt.category)),
 );
+const tags = ["AI", "Creative", "Product", "Sales", "Finance", "Support"];
 
 export default function BrowsePage() {
   const [priceRange, setPriceRange] = useState([0, 25]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedTag, setSelectedTag] = useState("");
   const [sortBy, setSortBy] = useState("recent");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (selectedCategory) count++;
+    if (selectedTag) count++;
     if (searchQuery) count++;
     if (sortBy !== "recent") count++;
     if (priceRange[0] !== 0 || priceRange[1] !== 25) count++;
     return count;
-  }, [selectedCategory, searchQuery, sortBy, priceRange]);
+  }, [selectedCategory, selectedTag, searchQuery, sortBy, priceRange]);
 
   const handleClearFilters = () => {
     setSearchQuery("");
     setSelectedCategory("");
+    setSelectedTag("");
     setSortBy("recent");
     setPriceRange([0, 25]);
   };
@@ -94,8 +98,11 @@ export default function BrowsePage() {
               </div>
               <MarketplaceFilters
                 categories={categories}
+                tags={tags}
                 selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory}
+                selectedTag={selectedTag}
+                setSelectedTag={setSelectedTag}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 priceRange={priceRange}
@@ -115,7 +122,7 @@ export default function BrowsePage() {
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by prompt title or keyword..."
+                  placeholder="Search by title, description, or tags..."
                   className="h-14 pl-12 pr-4 rounded-2xl border-white/5 bg-white/[0.03] text-base placeholder:text-slate-500 focus-visible:ring-emerald-500/20 transition-all"
                 />
               </div>
@@ -138,6 +145,7 @@ export default function BrowsePage() {
 
             <FetchAllPrompts
               selectedCategory={selectedCategory}
+              selectedTag={selectedTag}
               priceRange={priceRange}
               searchQuery={searchQuery}
               sortBy={sortBy}
@@ -167,8 +175,11 @@ export default function BrowsePage() {
             </div>
             <MarketplaceFilters
               categories={categories}
+              tags={tags}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
+              selectedTag={selectedTag}
+              setSelectedTag={setSelectedTag}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               priceRange={priceRange}

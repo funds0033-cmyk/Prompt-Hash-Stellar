@@ -41,6 +41,7 @@ const parseXlmNumber = (value: bigint) => Number(stroopsToXlmString(value));
 
 export interface FetchAllPromptsProps {
   selectedCategory: string;
+  selectedTag: string;
   priceRange: number[];
   searchQuery: string;
   sortBy: string;
@@ -48,6 +49,7 @@ export interface FetchAllPromptsProps {
 
 const FetchAllPrompts = ({
   selectedCategory,
+  selectedTag,
   priceRange,
   searchQuery,
   sortBy,
@@ -163,14 +165,22 @@ const FetchAllPrompts = ({
       const promptPrice = parseXlmNumber(prompt.priceStroops);
       const matchesCategory =
         !selectedCategory || prompt.category === selectedCategory;
+      const matchesTag =
+        !selectedTag ||
+        prompt.tags?.some(
+          (tag) => tag.toLowerCase() === selectedTag.toLowerCase(),
+        );
       const matchesSearch =
         !normalizedSearch ||
         prompt.title.toLowerCase().includes(normalizedSearch) ||
-        prompt.category.toLowerCase().includes(normalizedSearch);
+        prompt.category.toLowerCase().includes(normalizedSearch) ||
+        prompt.previewText.toLowerCase().includes(normalizedSearch) ||
+        (prompt.description ?? "").toLowerCase().includes(normalizedSearch) ||
+        prompt.tags?.some((tag) => tag.toLowerCase().includes(normalizedSearch));
       const matchesPrice =
         promptPrice >= priceRange[0] && promptPrice <= priceRange[1];
 
-      return prompt.active && matchesCategory && matchesSearch && matchesPrice;
+      return prompt.active && matchesCategory && matchesTag && matchesSearch && matchesPrice;
     });
 
     switch (sortBy) {
@@ -204,7 +214,7 @@ const FetchAllPrompts = ({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [priceRange, searchQuery, selectedCategory, sortBy]);
+  }, [priceRange, searchQuery, selectedCategory, selectedTag, sortBy]);
 
   if (promptsQuery.isLoading) {
     return (
