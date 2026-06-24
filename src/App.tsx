@@ -6,6 +6,7 @@ const BrowsePage = lazy(() => import("./pages/browse/page.jsx"));
 const SellPage = lazy(() => import("./pages/sell/page.tsx"));
 const ChatHome = lazy(() => import("./pages/chat/page.tsx"));
 const ProfilePage = lazy(() => import("./pages/profile/page.tsx"));
+const MyPurchasesPage = lazy(() => import("./pages/profile/MyPurchasesPage.tsx"));
 const StatusPage = lazy(() => import("./pages/status/page.tsx"));
 
 const AppLayout = () => (
@@ -30,6 +31,7 @@ function App() {
           <Route path="/sell" element={<SellPage />} />
           <Route path="/chat" element={<ChatHome />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/purchases" element={<MyPurchasesPage />} />
           <Route path="/status" element={<StatusPage />} />
           <Route path="*" element={<Home />} />
         </Route>

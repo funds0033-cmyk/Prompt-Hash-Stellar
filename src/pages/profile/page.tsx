@@ -30,6 +30,7 @@ import { Navigation } from "@/components/navigation";
 import { TipButton } from "@/components/TipButton";
 import { UnlockExplainer, type UnlockState } from "@/components/UnlockExplainer";
 import { WebhookSettings } from "@/components/WebhookSettings";
+import { CreatorDashboard } from "@/components/analytics/CreatorDashboard";
 import { PostVersionUpdate } from "@/components/PostVersionUpdate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1050,11 +1051,24 @@ export default function ProfilePage() {
                             onUnlock={(promptId) => void handleUnlock(promptId)}
                           />
                         ))}
+                        <div className="pt-2 text-center">
+                          <Link
+                            to="/purchases"
+                            className="text-xs text-cyan-400 hover:text-cyan-300 underline underline-offset-2 transition-colors"
+                          >
+                            Open full purchases page →
+                          </Link>
+                        </div>
                       </div>
                     )}
                   </TabsContent>
 
-                  <TabsContent value="created" className="mt-0 space-y-4">
+                  <TabsContent value="created" className="mt-0 space-y-6">
+                    {/* Creator activity dashboard — metrics, revenue, top performers (#213) */}
+                    {!isPublicView && address && (
+                      <CreatorDashboard walletAddress={address} />
+                    )}
+
                     {createdQuery.isLoading ? (
                       <LoadingState label="Loading your creator inventory..." />
                     ) : createdPrompts.length === 0 ? (

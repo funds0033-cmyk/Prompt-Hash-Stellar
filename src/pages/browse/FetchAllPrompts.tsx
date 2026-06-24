@@ -177,6 +177,7 @@ const FetchAllPrompts = ({
         prompt.category.toLowerCase().includes(normalizedSearch) ||
         prompt.previewText.toLowerCase().includes(normalizedSearch) ||
         (prompt.description ?? "").toLowerCase().includes(normalizedSearch) ||
+        prompt.creator.toLowerCase().includes(normalizedSearch) ||
         prompt.tags?.some((tag) => tag.toLowerCase().includes(normalizedSearch));
       const matchesPrice =
         promptPrice >= priceRange[0] && promptPrice <= priceRange[1];

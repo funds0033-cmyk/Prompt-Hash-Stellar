@@ -122,7 +122,7 @@ export default function BrowsePage() {
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by title, description, or tags..."
+                  placeholder="Search by title, creator, category, description, or tags..."
                   className="h-14 pl-12 pr-4 rounded-2xl border-white/5 bg-white/[0.03] text-base placeholder:text-slate-500 focus-visible:ring-emerald-500/20 transition-all"
                 />
               </div>
