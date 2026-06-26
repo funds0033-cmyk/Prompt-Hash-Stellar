@@ -3,6 +3,7 @@ import { ArrowRight, LockKeyhole, ShoppingBag, Sparkles } from "lucide-react";
 import { Navigation } from "@/components/navigation";
 import { Footer } from "@/components/footer";
 import { FeaturedPrompts } from "@/components/featured-prompts";
+import { FeaturedCreators } from "@/components/FeaturedCreators";
 import { Button } from "@/components/ui/button";
 import { MarketplaceAnalyticsCards } from "@/components/analytics/MarketplaceAnalyticsCards";
 import { usePageMeta } from "@/lib/seo/usePageMeta";
@@ -121,6 +122,8 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <FeaturedCreators />
 
         <FeaturedPrompts />
       </main>

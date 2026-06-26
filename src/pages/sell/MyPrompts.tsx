@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, Loader2, LockKeyhole } from "lucide-react";
+import { Eye, Loader2, LockKeyhole, PackagePlus, ShoppingBag, ToggleLeft, ToggleRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,18 +17,11 @@ import {
 import { formatPriceLabel, stroopsToXlmString, xlmToStroops } from "@/lib/stellar/format";
 import { unlockPromptContent } from "@/lib/prompts/unlock";
 
-const emptyState = (
-  <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-sm text-slate-300">
-    No prompts found yet.
-  </div>
-);
-
 interface MyPromptsProps {
   onCreateNew?: () => void;
 }
 
-const MyPrompts = ({ onCreateNew: _onCreateNew }: MyPromptsProps) => {
-  void _onCreateNew;
+const MyPrompts = ({ onCreateNew }: MyPromptsProps) => {
 
   const queryClient = useQueryClient();
   const { address, signMessage, signTransaction } = useWallet();
@@ -209,7 +203,23 @@ const MyPrompts = ({ onCreateNew: _onCreateNew }: MyPromptsProps) => {
             Loading created prompts...
           </div>
         ) : createdPrompts.length === 0 ? (
-          emptyState
+          <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-white/10 bg-white/5 px-8 py-14 text-center">
+            <PackagePlus className="h-10 w-10 text-slate-500" />
+            <div>
+              <p className="text-base font-semibold text-white">No listings yet</p>
+              <p className="mt-1 text-sm text-slate-400">
+                Publish your first prompt to start earning license fees.
+              </p>
+            </div>
+            {onCreateNew && (
+              <Button
+                className="mt-2 bg-emerald-400 text-slate-950 hover:bg-emerald-300"
+                onClick={onCreateNew}
+              >
+                Create a listing
+              </Button>
+            )}
+          </div>
         ) : (
           <div className="grid gap-6 xl:grid-cols-2">
             {createdPrompts.map((prompt) => (
@@ -225,14 +235,28 @@ const MyPrompts = ({ onCreateNew: _onCreateNew }: MyPromptsProps) => {
                   />
                 </div>
                 <CardContent className="space-y-4 p-5">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
-                      {prompt.category}
-                    </p>
-                    <h3 className="mt-2 text-xl font-semibold">{prompt.title}</h3>
-                    <p className="mt-3 text-sm leading-6 text-slate-300">
-                      {prompt.previewText}
-                    </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                        {prompt.category}
+                      </p>
+                      <h3 className="mt-2 text-xl font-semibold">{prompt.title}</h3>
+                      <p className="mt-3 text-sm leading-6 text-slate-300">
+                        {prompt.previewText}
+                      </p>
+                    </div>
+                    {/* Status badge */}
+                    {prompt.active ? (
+                      <span className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                        Active
+                      </span>
+                    ) : (
+                      <span className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-500/25 bg-slate-500/10 px-2.5 py-1 text-xs font-semibold text-slate-400">
+                        <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                        Inactive
+                      </span>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
                     <div>
@@ -245,10 +269,10 @@ const MyPrompts = ({ onCreateNew: _onCreateNew }: MyPromptsProps) => {
                     </div>
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                        Status
+                        Current price
                       </p>
                       <p className="mt-2 font-medium text-slate-100">
-                        {prompt.active ? "Active" : "Inactive"}
+                        {formatPriceLabel(prompt.priceStroops)}
                       </p>
                     </div>
                   </div>
@@ -273,22 +297,25 @@ const MyPrompts = ({ onCreateNew: _onCreateNew }: MyPromptsProps) => {
                     </Button>
                   </div>
                 </CardContent>
-                <CardFooter className="flex items-center justify-between p-5 pt-0">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                      Current price
-                    </p>
-                    <p className="mt-2 text-lg font-semibold text-slate-100">
-                      {formatPriceLabel(prompt.priceStroops)}
-                    </p>
-                  </div>
+                <CardFooter className="p-5 pt-0">
                   <Button
                     variant="outline"
-                    className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
+                    className={`w-full gap-2 border-white/10 text-slate-100 hover:bg-white/10 ${
+                      prompt.active
+                        ? "bg-white/5 hover:border-red-400/30 hover:text-red-300"
+                        : "bg-emerald-500/10 border-emerald-500/20 hover:border-emerald-400/40 text-emerald-400"
+                    }`}
                     onClick={() => void handleToggleSaleStatus(prompt.id, prompt.active)}
                     disabled={busyPromptId === prompt.id.toString()}
                   >
-                    {prompt.active ? "Set inactive" : "Reactivate"}
+                    {busyPromptId === prompt.id.toString() ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : prompt.active ? (
+                      <ToggleRight className="h-4 w-4" />
+                    ) : (
+                      <ToggleLeft className="h-4 w-4" />
+                    )}
+                    {prompt.active ? "Deactivate listing" : "Reactivate listing"}
                   </Button>
                 </CardFooter>
               </Card>
@@ -310,7 +337,18 @@ const MyPrompts = ({ onCreateNew: _onCreateNew }: MyPromptsProps) => {
             Loading purchased prompts...
           </div>
         ) : purchasedPrompts.length === 0 ? (
-          emptyState
+          <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-white/10 bg-white/5 px-8 py-14 text-center">
+            <ShoppingBag className="h-10 w-10 text-slate-500" />
+            <div>
+              <p className="text-base font-semibold text-white">No purchases yet</p>
+              <p className="mt-1 text-sm text-slate-400">
+                Browse the marketplace to find and unlock prompt licenses.
+              </p>
+            </div>
+            <Button asChild className="mt-2 bg-white/10 text-slate-100 hover:bg-white/15">
+              <Link to="/browse">Browse marketplace</Link>
+            </Button>
+          </div>
         ) : (
           <div className="grid gap-6 xl:grid-cols-2">
             {purchasedPrompts.map((prompt) => (

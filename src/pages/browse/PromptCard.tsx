@@ -171,18 +171,28 @@ export const PromptCard = ({
             {prompt.previewText}
           </p>
 
-          {/* Rating Display */}
-          {reviewStats && reviewStats.total > 0 && (
-            <div className="pt-2">
-              <StarRating
-                rating={reviewStats.averageRating}
-                readonly
-                size="sm"
-                showCount
-                reviewCount={reviewStats.total}
-              />
-            </div>
-          )}
+          {/* Quality Score Display */}
+          <div className="pt-2">
+            {reviewStats && reviewStats.total > 0 ? (
+              <div className="flex items-center gap-2">
+                <StarRating
+                  rating={reviewStats.averageRating}
+                  readonly
+                  size="sm"
+                  showCount
+                  reviewCount={reviewStats.total}
+                />
+                <span
+                  className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400"
+                  title="Average quality score based on buyer reviews"
+                >
+                  {reviewStats.averageRating.toFixed(1)}
+                </span>
+              </div>
+            ) : (
+              <span className="text-[11px] text-slate-500 italic">No ratings yet</span>
+            )}
+          </div>
         </div>
 
         {/* Purchase Info Row */}

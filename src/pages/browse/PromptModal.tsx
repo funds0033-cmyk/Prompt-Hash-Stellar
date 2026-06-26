@@ -1,4 +1,5 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { WalletContext } from "../../providers/WalletProvider";
 import { useAsyncTransaction } from "../../components/useAsyncTransaction";
 import { PromptHashClient } from "../../lib/stellar/promptHashClient";
@@ -23,6 +24,29 @@ import {
   ShoppingBag,
   Hash,
 } from "lucide-react";
+
+// Small inline copy button used in the receipt reference details
+const CopyField: React.FC<{ value: string; label: string }> = ({ value, label }) => {
+  const [copied, setCopied] = React.useState(false);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // silent
+    }
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      title={`Copy ${label}`}
+      className="shrink-0 rounded-lg border border-white/10 bg-white/5 p-1.5 text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+    </button>
+  );
+};
 import { ReviewForm } from "../../components/prompts/ReviewForm";
 import { ReviewList } from "../../components/prompts/ReviewList";
 import { StarRating } from "../../components/prompts/StarRating";
@@ -60,6 +84,13 @@ const PromptMetadataSection: React.FC<{ itemId: string; status: BuyerStatus }> =
     enabled: !!itemId,
   });
 
+  const { data: reviewStats, isLoading: reviewStatsLoading } = useQuery({
+    queryKey: ["review-stats", itemId],
+    queryFn: () => ReviewClient.getReviewStats(itemId),
+    enabled: !!itemId,
+    staleTime: 60_000,
+  });
+
   if (isLoading) {
     return (
       <div className="mb-6 space-y-3">
@@ -80,6 +111,30 @@ const PromptMetadataSection: React.FC<{ itemId: string; status: BuyerStatus }> =
       <div className="p-4 rounded-xl bg-white/5 border border-white/5">
         <p className="text-xs uppercase tracking-wider text-slate-400 mb-2">Preview</p>
         <p className="text-sm text-slate-300 leading-relaxed">{prompt.previewText}</p>
+      </div>
+
+      {/* Quality Score */}
+      <div className="p-3 rounded-lg bg-white/5 border border-white/5">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-slate-400 uppercase tracking-wider">Quality Score</p>
+          {!reviewStatsLoading && reviewStats && reviewStats.total > 0 && (
+            <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+              {reviewStats.averageRating.toFixed(1)} / 5
+            </span>
+          )}
+        </div>
+        {reviewStatsLoading ? (
+          <Skeleton className="mt-2 h-4 w-32" />
+        ) : reviewStats && reviewStats.total > 0 ? (
+          <div className="mt-2 flex items-center gap-3">
+            <StarRating rating={reviewStats.averageRating} readonly size="sm" />
+            <span className="text-xs text-slate-400">
+              {reviewStats.total} {reviewStats.total === 1 ? "review" : "reviews"}
+            </span>
+          </div>
+        ) : (
+          <p className="mt-2 text-xs italic text-slate-500">No ratings yet — be the first to review.</p>
+        )}
       </div>
 
       {/* Metadata Grid */}
@@ -163,6 +218,13 @@ export const PromptModal: React.FC<PromptModalProps> = ({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
+
+  // Fetch prompt details (used by receipt view and metadata section)
+  const { data: promptDetail } = useQuery({
+    queryKey: ["prompt-detail", itemId],
+    queryFn: async () => PromptHashClient.getPrompt(browserStellarConfig, BigInt(itemId)),
+    enabled: isOpen && !!itemId,
+  });
 
   // Fetch reviews for this prompt
   const { data: reviewData, isLoading: reviewsLoading } = useQuery({
@@ -460,20 +522,85 @@ export const PromptModal: React.FC<PromptModalProps> = ({
               )}
 
               {status === "SUCCESS" && (
-                <div className="animate-in fade-in zoom-in duration-300">
-                  <div className="flex items-center gap-2 text-emerald-400 font-bold mb-4">
-                    <CheckCircle className="h-5 w-5" /> Access Granted
+                <div className="animate-in fade-in zoom-in duration-300 space-y-4">
+                  {/* Receipt header */}
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+                    <div className="flex items-center gap-2 text-emerald-400 font-bold mb-3">
+                      <CheckCircle className="h-5 w-5" /> Purchase Receipt
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <p className="text-slate-400 uppercase tracking-wider mb-1">Prompt</p>
+                        <p className="font-semibold text-white truncate">
+                          {promptDetail?.title ?? `#${itemId}`}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 uppercase tracking-wider mb-1">Price paid</p>
+                        <p className="font-semibold text-emerald-300">
+                          {promptDetail ? `${stroopsToXlmString(promptDetail.priceStroops)} XLM` : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 uppercase tracking-wider mb-1">Buyer status</p>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-400">
+                          Licensed
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 uppercase tracking-wider mb-1">Buyer</p>
+                        <p className="font-mono text-white truncate">
+                          {wallet?.address
+                            ? `${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}`
+                            : "—"}
+                        </p>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Reference details — copyable */}
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Reference details</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-slate-500">Prompt ID</p>
+                        <p className="font-mono text-xs text-slate-300">#{itemId}</p>
+                      </div>
+                      <CopyField value={itemId} label="prompt ID" />
+                    </div>
+                    {txHash && (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-slate-500">Transaction ref</p>
+                          <p className="font-mono text-xs text-slate-300 truncate">{txHash}</p>
+                        </div>
+                        <CopyField value={txHash} label="tx ref" />
+                      </div>
+                    )}
+                    {promptDetail?.contentHash && (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-slate-500">Content hash</p>
+                          <p className="font-mono text-xs text-slate-300 truncate">
+                            {promptDetail.contentHash.slice(0, 16)}…
+                          </p>
+                        </div>
+                        <CopyField value={promptDetail.contentHash} label="content hash" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Unlocked content */}
                   <div className="relative group">
                     <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl blur opacity-20 group-hover:opacity-30 transition" />
-                    <div className="relative bg-black border border-white/5 rounded-xl p-6 max-h-[300px] overflow-y-auto">
+                    <div className="relative bg-black border border-white/5 rounded-xl p-6 max-h-[240px] overflow-y-auto">
                       <pre className="text-sm text-slate-300 whitespace-pre-wrap font-mono leading-relaxed">
                         {secretContent}
                       </pre>
                     </div>
                   </div>
 
-                  <div className="mt-4 flex gap-3">
+                  <div className="flex gap-3">
                     <button
                       onClick={handleCopyContent}
                       className="flex-1 flex items-center justify-center gap-2 h-12 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-semibold rounded-xl transition-all border border-emerald-500/30"
@@ -487,27 +614,27 @@ export const PromptModal: React.FC<PromptModalProps> = ({
                       ) : (
                         <>
                           <Copy className="h-4 w-4" />
-                          Copy
+                          Copy content
                         </>
                       )}
                     </button>
                   </div>
 
                   {copyFeedback.visible && !copyFeedback.success && (
-                    <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
+                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
                       {copyFeedback.message}
                     </div>
                   )}
 
-                  <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                  <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
                     <p className="text-xs text-blue-300 leading-relaxed">
-                      Please store your purchased prompt content securely. Do not share this content publicly or with unauthorized users.
+                      Store this prompt securely. Do not share it publicly or with unauthorised users.
                     </p>
                   </div>
 
                   {/* Review Section */}
                   {wallet?.address && (
-                    <div className="mt-6 pt-6 border-t border-white/10">
+                    <div className="pt-4 border-t border-white/10">
                       {!showReviewForm ? (
                         <button
                           onClick={() => setShowReviewForm(true)}
@@ -539,12 +666,22 @@ export const PromptModal: React.FC<PromptModalProps> = ({
                     </div>
                   )}
 
-                  <button
-                    onClick={onClose}
-                    className="w-full mt-6 h-12 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all"
-                  >
-                    Back to Marketplace
-                  </button>
+                  <div className="flex gap-3 pt-2">
+                    <Link
+                      to="/purchases"
+                      className="flex-1 flex items-center justify-center gap-2 h-12 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl transition-all"
+                      onClick={onClose}
+                    >
+                      <ShoppingBag className="h-4 w-4" />
+                      Go to my library
+                    </Link>
+                    <button
+                      onClick={onClose}
+                      className="flex-1 h-12 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all"
+                    >
+                      Back to marketplace
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
