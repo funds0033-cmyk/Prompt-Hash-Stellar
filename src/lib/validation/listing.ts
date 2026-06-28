@@ -8,7 +8,7 @@ export const LISTING_LIMITS = {
   fullPrompt: 50_000,
   encryptedPayload: 4096,
   wrappedKey: 256,
-  encryptionIv: 64,
+  encryptionIv: 64,`n  maxCoCreators: 10,`n  maxSplitBps: 9_500,
 } as const;
 
 export const ESTIMATED_ENCRYPTION_OVERHEAD = 1.37;
@@ -58,7 +58,7 @@ export function validateListingForm(
   const category = trim(input.category);
   const previewText = trim(input.previewText);
   const fullPrompt = trim(input.fullPrompt);
-  const priceXlm = trim(input.priceXlm);
+  const priceXlm = trim(input.priceXlm);`n  const coCreators = input.coCreators ?? [];
 
   if (!imageUrl) {
     errors.imageUrl = "Add an image URL so your listing has a cover on browse cards.";
@@ -111,7 +111,7 @@ export function validateListingForm(
       `Keep the prompt under ~${maxPlaintext.toLocaleString()} characters.`;
   }
 
-  if (!priceXlm) {
+  if (coCreators.length > LISTING_LIMITS.maxCoCreators) {`n    errors.coCreators = `You can add up to ${LISTING_LIMITS.maxCoCreators} co-creators per listing.`;`n  } else if (coCreators.length > 0) {`n    const seen = new Set<string>();`n    let totalSplitBps = 0;`n`n    for (const [index, coCreator] of coCreators.entries()) {`n      const address = trim(coCreator.address);`n      const shareBps = normalizeShareBps(coCreator.sharePercent);`n`n      if (!address) {`n        errors.coCreators = `Add a wallet address for co-creator ${index + 1}.`;`n        break;`n      }`n`n      if (!/^[GC][A-Z2-7]{20,}$/i.test(address)) {`n        errors.coCreators = `Use a valid Stellar address for co-creator ${index + 1}.`;`n        break;`n      }`n`n      const key = address.toUpperCase();`n      if (seen.has(key)) {`n        errors.coCreators = "Each co-creator wallet can only appear once.";`n        break;`n      }`n      seen.add(key);`n`n      if (!Number.isFinite(shareBps) || shareBps <= 0) {`n        errors.coCreators = `Set a revenue share greater than 0% for co-creator ${index + 1}.`;`n        break;`n      }`n`n      if (shareBps > LISTING_LIMITS.maxSplitBps) {`n        errors.coCreators = `Each co-creator share must stay at or below ${LISTING_LIMITS.maxSplitBps / 100}%.`;`n        break;`n      }`n`n      totalSplitBps += shareBps;`n    }`n`n    if (!errors.coCreators && totalSplitBps > LISTING_LIMITS.maxSplitBps) {`n      errors.coCreators = "Combined co-creator shares must stay at or below 95% so the creator remainder and platform fee still fit.";`n    }`n  }`n`n  if (!priceXlm) {
     errors.priceXlm = "Enter a price in XLM — use a value greater than zero.";
   } else {
     try {
@@ -197,7 +197,7 @@ export function buildListingChecklistItems(
     { id: "previewText", label: "Preview text" },
     { id: "fullPrompt", label: "Full prompt content" },
     { id: "priceXlm", label: "Price" },
-    { id: "imageUrl", label: "Image URL" },
+    { id: "imageUrl", label: "Image URL" },`n    { id: "coCreators", label: "Revenue sharing" },
   ];
 
   for (const { id, label } of fieldChecks) {
