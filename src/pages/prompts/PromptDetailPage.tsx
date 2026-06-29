@@ -5,7 +5,9 @@ import {
   ArrowLeft,
   Check,
   Copy,
+  History,
   Loader2,
+  ShieldCheck,
   ShoppingBag,
   Sparkles,
   User,
@@ -19,6 +21,8 @@ import { getPrompt } from "@/lib/stellar/promptHashClient";
 import { formatPriceLabel } from "@/lib/stellar/format";
 import { copyToClipboard } from "@/lib/clipboard/secureClipboard";
 import { usePageMeta } from "@/lib/seo/usePageMeta";
+import { PromptRevisionHistory } from "@/components/analytics/PromptRevisionHistory";
+import { MarkdownContent } from "@/components/MarkdownContent";
 
 const FALLBACK_IMAGE = "/images/codeguru.png";
 
@@ -126,11 +130,39 @@ export default function PromptDetailPage() {
                   <Sparkles className="mr-1 h-3 w-3" />
                   {prompt.category}
                 </Badge>
-                {!prompt.active && (
-                  <Badge className="border-white/10 bg-white/[0.04] text-slate-300">
-                    Unavailable
-                  </Badge>
+                {prompt.active ? (
+                  <span
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    title="This prompt is currently available for purchase"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Active
+                  </span>
+                ) : (
+                  <span
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/20"
+                    title="This prompt is not currently available for purchase"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                    Inactive
+                  </span>
                 )}
+                {prompt.contentHash && (
+                  <span
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    title="Content integrity verified on the Stellar blockchain"
+                  >
+                    <ShieldCheck className="h-3 w-3 text-amber-400" />
+                    Verified
+                  </span>
+                )}
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                  title={`${prompt.salesCount} license${prompt.salesCount !== 1 ? "s" : ""} sold`}
+                >
+                  <ShoppingBag className="h-3 w-3" />
+                  {prompt.salesCount} sold
+                </span>
               </div>
 
               <div>
@@ -140,6 +172,11 @@ export default function PromptDetailPage() {
                 <p className="mt-2 text-sm leading-6 text-slate-400">
                   {prompt.previewText}
                 </p>
+                {prompt.description && (
+                  <div className="mt-4">
+                    <MarkdownContent>{prompt.description}</MarkdownContent>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-400">
@@ -151,13 +188,15 @@ export default function PromptDetailPage() {
                       : prompt.creator}
                   </span>
                 </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <ShoppingBag className="h-3.5 w-3.5" />
-                  {prompt.salesCount} sold
-                </span>
                 <span className="font-semibold text-white">
                   {formatPriceLabel(prompt.priceStroops)}
                 </span>
+                {"revision" in prompt && prompt.revision !== undefined && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <History className="h-3.5 w-3.5" />
+                    v{prompt.revision}
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row">

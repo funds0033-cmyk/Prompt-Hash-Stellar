@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, Loader2, LockKeyhole, PackagePlus, ShoppingBag, ToggleLeft, ToggleRight } from "lucide-react";
+import { Eye, History, Loader2, LockKeyhole, PackagePlus, ShoppingBag, ToggleLeft, ToggleRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CreatorDashboard } from "@/components/sell/CreatorDashboard";
+import { PostVersionUpdate } from "@/components/PostVersionUpdate";
 import { useWallet } from "@/hooks/useWallet";
 import { browserStellarConfig } from "@/lib/stellar/browserConfig";
 import {
@@ -258,7 +259,7 @@ const MyPrompts = ({ onCreateNew }: MyPromptsProps) => {
                       </span>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+                  <div className="grid grid-cols-3 gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
                         Sales
@@ -273,6 +274,14 @@ const MyPrompts = ({ onCreateNew }: MyPromptsProps) => {
                       </p>
                       <p className="mt-2 font-medium text-slate-100">
                         {formatPriceLabel(prompt.priceStroops)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                        Revision
+                      </p>
+                      <p className="mt-2 font-medium text-slate-100">
+                        {("revision" in prompt ? prompt.revision : 0)}
                       </p>
                     </div>
                   </div>
@@ -297,7 +306,13 @@ const MyPrompts = ({ onCreateNew }: MyPromptsProps) => {
                     </Button>
                   </div>
                 </CardContent>
-                <CardFooter className="p-5 pt-0">
+                <CardFooter className="flex flex-col gap-3 p-5 pt-0">
+                  <PostVersionUpdate
+                    promptId={prompt.id.toString()}
+                    promptTitle={prompt.title}
+                    walletAddress={address ?? ""}
+                    currentVersion={("revision" in prompt ? prompt.revision : 0) + 1}
+                  />
                   <Button
                     variant="outline"
                     className={`w-full gap-2 border-white/10 text-slate-100 hover:bg-white/10 ${

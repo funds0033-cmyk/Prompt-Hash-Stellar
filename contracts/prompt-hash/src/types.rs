@@ -140,6 +140,8 @@ pub struct ListingConfig {
     pub splits: Vec<Split>,
     /// Search tags used for marketplace discovery. Tags should be lowercase kebab-case.
     pub tags: Vec<String>,
+    /// Maximum number of licenses that can be sold (0 = unlimited).
+    pub max_supply: u64,
 }
 
 #[contracttype]
@@ -366,4 +368,7 @@ pub trait PromptHashTrait {
 
     fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), Error>;
     fn extend_ttl(env: Env, key: DataKey) -> Result<(), Error>;
+    /// Bulk-extend TTL for all active storage entries. Intended for periodic
+    /// admin maintenance (#26).
+    fn extend_all_ttl(env: Env) -> Result<(), Error>;
 }

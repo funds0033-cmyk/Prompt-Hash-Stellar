@@ -1,6 +1,32 @@
 use super::types::{DataKey, Error, ListingRevisionRecord, Prompt, Purchase, PurchaseDispute};
 use soroban_sdk::{token, Address, BytesN, Env, Vec};
 
+/// # Storage TTL Policy (#26)
+///
+/// Every persistent storage entry is governed by the following TTL policy:
+///
+/// - **DAY_IN_LEDGERS**: 17,280 ledgers (~1 day on Stellar at 5s closure)
+/// - **PERSISTENT_LIFETIME_THRESHOLD**: 7 days — if remaining TTL drops below this,
+///   the entry is bumped on next read/write.
+/// - **PERSISTENT_BUMP_AMOUNT**: 30 days — each bump extends TTL by this amount.
+///
+/// ## Read path
+/// Every `get_*` function calls `extend_key_ttl` so frequently-accessed entries
+/// stay alive. This covers prompts, purchases, fee config, voucher keys, listing
+/// revisions, disputes, and creator/buyer index lists.
+///
+/// ## Write path
+/// Every `set_*` / `save_*` / `update_*` function also bumps TTL after writing.
+///
+/// ## Bulk maintenance
+/// `extend_all_ttl` iterates over all prompts and extends their TTL + related
+/// entries. Call this periodically (e.g. via a cron or admin CLI) to prevent
+/// archival of active listings.
+///
+/// ## Archival recovery
+/// If a record is archived (TTL expired), the associated data is lost and cannot
+/// be recovered from on-chain storage. Off-chain indexers should maintain a
+/// backup of critical records. See `docs/operations/backup-and-recovery.md`.
 pub const DAY_IN_LEDGERS: u32 = 17280;
 pub const PERSISTENT_BUMP_AMOUNT: u32 = 30 * DAY_IN_LEDGERS;
 pub const PERSISTENT_LIFETIME_THRESHOLD: u32 = 7 * DAY_IN_LEDGERS;
@@ -420,5 +446,46 @@ impl Storage {
             Self::extend_key_ttl(env, &key);
         }
         record
+    }
+
+    // ── Bulk TTL maintenance (#26) ──────────────────────────────────────────
+
+    /// Iterates over every existing prompt and extends TTL on the prompt record,
+    /// its listing revisions, and the creator's prompt index. This is designed
+    /// for periodic admin maintenance calls to prevent archival of active data.
+    pub fn extend_all_ttl(env: &Env) {
+        let prompt_count = Self::get_prompt_counter(env);
+        for prompt_id in 0..prompt_count {
+            let key = DataKey::Prompt(prompt_id);
+            if env.storage().persistent().has(&key) {
+                Self::extend_key_ttl(env, &key);
+                // Also bump revision snapshots for this prompt
+                if let Some(prompt) = Self::get_prompt(env, prompt_id) {
+                    for rev in 0..=prompt.revision {
+                        let rev_key = DataKey::ListingRevision(prompt_id, rev);
+                        if env.storage().persistent().has(&rev_key) {
+                            Self::extend_key_ttl(env, &rev_key);
+                        }
+                    }
+                    // Bump creator index
+                    let creator_key = DataKey::CreatorPrompts(prompt.creator.clone());
+                    if env.storage().persistent().has(&creator_key) {
+                        Self::extend_key_ttl(env, &creator_key);
+                    }
+                }
+            }
+        }
+        // Bump global config entries
+        for key in [
+            DataKey::FeePercentage,
+            DataKey::FeeWallet,
+            DataKey::XlmAddress,
+            DataKey::ReferralPercentage,
+            DataKey::IsPaused,
+        ] {
+            if env.storage().persistent().has(&key) {
+                Self::extend_key_ttl(env, &key);
+            }
+        }
     }
 }
