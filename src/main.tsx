@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 
 import { WalletProvider } from "./providers/WalletProvider.tsx";
+import { AuthProvider } from "./providers/AuthProvider.tsx";
 import { TransactionProvider } from "./components/TransactionProvider.tsx";
 import { NotificationProvider } from "./providers/NotificationProvider.tsx";
 import { ContractSyncProvider } from "./providers/ContractSyncProvider.tsx";
@@ -53,9 +54,11 @@ createRoot(document.getElementById("root") as HTMLElement).render(
           <ContractSyncProvider>
             <TransactionProvider>
               <WalletProvider>
-                <BrowserRouter>
-                  <App />
-                </BrowserRouter>
+                <AuthProvider>
+                  <BrowserRouter>
+                    <App />
+                  </BrowserRouter>
+                </AuthProvider>
               </WalletProvider>
             </TransactionProvider>
           </ContractSyncProvider>
