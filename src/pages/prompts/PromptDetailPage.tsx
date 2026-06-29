@@ -30,6 +30,7 @@ import { stroopsToXlmString, formatPriceLabel } from "@/lib/stellar/format";
 import { copyToClipboard } from "@/lib/clipboard/secureClipboard";
 import { usePageMeta } from "@/lib/seo/usePageMeta";
 import { PromptRevisionHistory } from "@/components/analytics/PromptRevisionHistory";
+import { MarkdownContent } from "@/components/MarkdownContent";
 import { ReviewClient } from "@/lib/reviews/reviewClient";
 import { ReviewList } from "@/components/prompts/ReviewList";
 import { ReviewForm } from "@/components/prompts/ReviewForm";
@@ -317,6 +318,11 @@ export default function PromptDetailPage() {
                 <p className="mt-3 text-sm leading-7 text-slate-400">
                   {prompt.previewText}
                 </p>
+                {prompt.description && (
+                  <div className="mt-4">
+                    <MarkdownContent>{prompt.description}</MarkdownContent>
+                  </div>
+                )}
               </div>
 
               {/* Quick stats */}

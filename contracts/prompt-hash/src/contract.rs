@@ -611,6 +611,17 @@ impl PromptHashTrait for PromptHashContract {
         Storage::get_xlm_address(&env)
     }
 
+    fn get_prompts_by_ids(env: Env, prompt_ids: Vec<u128>) -> Result<Vec<Prompt>, Error> {
+        let mut prompts = Vec::new(&env);
+        for i in 0..prompt_ids.len() {
+            let id = prompt_ids.get(i).unwrap();
+            if let Ok(prompt) = Storage::require_prompt(&env, id) {
+                prompts.push_back(prompt);
+            }
+        }
+        Ok(prompts)
+    }
+
     #[only_owner]
     fn set_pause_status(env: Env, paused: bool) -> Result<(), Error> {
         Storage::set_pause_status(&env, paused);

@@ -9,7 +9,13 @@ export type AuditAction =
   | "unlock_no_access"
   | "unlock_integrity_failure"
   | "unlock_error"
-  | "unlock_rate_limited";
+  | "unlock_rate_limited"
+  | "auth_nonce_issued"
+  | "auth_verify_success"
+  | "auth_verify_invalid_signature"
+  | "auth_verify_invalid_nonce"
+  | "auth_rate_limited"
+  | "unlock_replay_detected";
 
 export type AuditResult = "success" | "failure" | "blocked";
 
@@ -28,6 +34,12 @@ const auditLogSchema = new mongoose.Schema(
         "unlock_integrity_failure",
         "unlock_error",
         "unlock_rate_limited",
+        "auth_nonce_issued",
+        "auth_verify_success",
+        "auth_verify_invalid_signature",
+        "auth_verify_invalid_nonce",
+        "auth_rate_limited",
+        "unlock_replay_detected",
       ] as AuditAction[],
       index: true,
     },
