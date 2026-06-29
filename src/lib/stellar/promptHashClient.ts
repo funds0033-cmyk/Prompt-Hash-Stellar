@@ -1,15 +1,28 @@
 /* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 /**
- * WARNING: MOCK CONTRACT IMPLEMENTATION
- * This file currently stubs all on-chain reads/writes with mock data.
- * This should NOT reach production.
- * TODO: Restore real Soroban contract integration before release.
+ * PromptHashClient
+ *
+ * Read / listing methods (getAllPrompts, getPrompt, etc.) remain mocked until
+ * the indexer is wired up.
+ *
+ * PURCHASE PATH (`purchasePrompt`) IS REAL: when `promptHashContractId` is
+ * configured in the environment it calls the on-chain `buy_prompt` function
+ * via the XLM payment gateway in `xlmPaymentGateway.ts`.
  */
+
+import {
+  purchasePromptWithXlm,
+  InsufficientXlmBalanceError,
+  UserRejectedTransactionError,
+  type XlmPaymentConfig,
+} from "./xlmPaymentGateway";
+import type { WalletTransactionSigner } from "./tx";
+
 let hasWarnedMock = false;
 const warnMockUse = () => {
   if (hasWarnedMock) return;
   console.warn(
-    "âš ï¸ USING MOCK PromptHashClient: Contract calls are currently stubbed and will not hit the Stellar network.",
+    "[PromptHashClient] Read/listing calls are currently stubbed with mock data.",
   );
   hasWarnedMock = true;
 };
@@ -60,6 +73,25 @@ export interface CreatePromptInput {
   splits?: RevenueSplitInput[];
 }
 
+export interface PurchasePromptOptions {
+  /**
+   * The wallet signer required for on-chain purchases. Must be provided when
+   * `config.promptHashContractId` is set; ignored in mock mode.
+   */
+  signer?: WalletTransactionSigner;
+  /**
+   * The exact price in stroops as read from the prompt record.  Required for
+   * on-chain mode so the contract can validate the payment amount.
+   */
+  priceStroops?: bigint;
+  /** Override the config used for the on-chain call (used in tests). */
+  config?: PromptHashConfig;
+  /** Force a specific failure mode for demo / integration tests. */
+  forceFailure?: string;
+  /** Artificial delay in ms (mock mode only). */
+  delay?: number;
+}
+
 export class PromptHashClient {
   /**
    * Checks if the user already has access to the prompt.
@@ -89,13 +121,65 @@ export class PromptHashClient {
   }
 
   /**
-   * Invokes the Soroban contract to purchase a prompt.
+   * Purchase a prompt using XLM.
+   *
+   * Real on-chain flow (when `promptHashContractId` is configured):
+   *   1. Approve the XLM Stellar Asset Contract to let the prompt-hash
+   *      contract pull `priceStroops` from the buyer's account.
+   *   2. Call `buy_prompt` on the prompt-hash contract.
+   *
+   * Falls back to a mock when the contract ID is not set so local / CI
+   * development continues to work without a live network.
    */
   static async purchasePrompt(
-    _itemId: string,
-    _userAddress: string,
-    options?: { forceFailure?: string; delay?: number },
+    itemId: string,
+    userAddress: string,
+    options?: PurchasePromptOptions,
   ): Promise<{ txHash: string; success: boolean }> {
+    const cfg = options?.config;
+    const isOnChain =
+      cfg &&
+      cfg.promptHashContractId &&
+      cfg.nativeAssetContractId &&
+      options?.signer &&
+      options?.priceStroops !== undefined;
+
+    // ── On-chain path ────────────────────────────────────────────────────────
+    if (isOnChain) {
+      const paymentConfig: XlmPaymentConfig = {
+        rpcUrl: cfg.rpcUrl,
+        networkPassphrase: cfg.networkPassphrase,
+        allowHttp: cfg.allowHttp,
+        promptHashContractId: cfg.promptHashContractId,
+        nativeAssetContractId: cfg.nativeAssetContractId,
+        simulationAccount: cfg.simulationAccount,
+      };
+
+      // Re-throw typed errors so the UI can render targeted messages.
+      try {
+        const result = await purchasePromptWithXlm(
+          paymentConfig,
+          options.signer!,
+          userAddress,
+          BigInt(itemId),
+          options.priceStroops!,
+        );
+        return { txHash: result.txHash, success: true };
+      } catch (err) {
+        // Re-throw typed errors so calling code can handle them specifically
+        if (
+          err instanceof InsufficientXlmBalanceError ||
+          err instanceof UserRejectedTransactionError
+        ) {
+          throw err;
+        }
+        // Wrap any other error in a plain Error
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(msg);
+      }
+    }
+
+    // ── Mock / fallback path ─────────────────────────────────────────────────
     warnMockUse();
     return new Promise((resolve, reject) => {
       const delay = options?.delay ?? 2000;
@@ -103,7 +187,6 @@ export class PromptHashClient {
         if (options?.forceFailure) {
           return reject(new Error(options.forceFailure));
         }
-
         const mockHash =
           "tx_" + Math.random().toString(16).slice(2, 14).padStart(12, "0");
         resolve({ txHash: mockHash, success: true });
