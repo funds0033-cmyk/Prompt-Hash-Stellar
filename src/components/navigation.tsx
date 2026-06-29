@@ -1,5 +1,14 @@
 import { Link, NavLink } from "react-router-dom";
-import { Activity, Menu, MessageCircle, Search, ShoppingBag, User } from "lucide-react";
+import NetworkSwitcher from "./NetworkSwitcher";
+import {
+  Activity,
+  LibraryBig,
+  Menu,
+  MessageCircle,
+  Search,
+  ShoppingBag,
+  User,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import DisplayWallet from "./DisplayWallet";
@@ -8,6 +17,7 @@ import { SellerNotificationCenter } from "./SellerNotificationCenter";
 
 const navItems = [
   { to: "/browse", label: "Browse", icon: Search },
+  { to: "/collections", label: "Collections", icon: LibraryBig },
   { to: "/sell", label: "Sell", icon: ShoppingBag },
   { to: "/chat", label: "Chat", icon: MessageCircle },
   { to: "/profile", label: "Profile", icon: User },
@@ -54,7 +64,7 @@ export function Navigation() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-4">
+        <div className="hidden items-center gap-2 md:flex md:gap-4">
           <ThemeToggle />
           <SellerNotificationCenter />
           <DisplayWallet />

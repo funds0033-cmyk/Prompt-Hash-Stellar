@@ -140,6 +140,8 @@ pub struct ListingConfig {
     pub splits: Vec<Split>,
     /// Search tags used for marketplace discovery. Tags should be lowercase kebab-case.
     pub tags: Vec<String>,
+    /// Maximum number of licenses that can be sold (0 = unlimited).
+    pub max_supply: u64,
 }
 
 #[contracttype]
@@ -359,6 +361,14 @@ pub trait PromptHashTrait {
         hashed_code: BytesN<32>,
     ) -> Result<(), Error>;
     fn get_xlm_sac(env: Env) -> Option<Address>;
+
+    /// Fetch multiple prompts by ID in a single call. Returns only prompts
+    /// that exist — missing IDs are silently skipped.
+    fn get_prompts_by_ids(env: Env, prompt_ids: Vec<u128>) -> Result<Vec<Prompt>, Error>;
+
     fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), Error>;
     fn extend_ttl(env: Env, key: DataKey) -> Result<(), Error>;
+    /// Bulk-extend TTL for all active storage entries. Intended for periodic
+    /// admin maintenance (#26).
+    fn extend_all_ttl(env: Env) -> Result<(), Error>;
 }

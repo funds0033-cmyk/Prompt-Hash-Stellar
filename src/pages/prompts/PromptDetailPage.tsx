@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Flag,
   Hash,
+  History,
   Loader2,
   LockKeyhole,
   MessageSquare,
@@ -25,9 +26,11 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { browserStellarConfig } from "@/lib/stellar/browserConfig";
 import { getPrompt, hasAccess } from "@/lib/stellar/promptHashClient";
-import { stroopsToXlmString } from "@/lib/stellar/format";
+import { stroopsToXlmString, formatPriceLabel } from "@/lib/stellar/format";
 import { copyToClipboard } from "@/lib/clipboard/secureClipboard";
 import { usePageMeta } from "@/lib/seo/usePageMeta";
+import { PromptRevisionHistory } from "@/components/analytics/PromptRevisionHistory";
+import { MarkdownContent } from "@/components/MarkdownContent";
 import { ReviewClient } from "@/lib/reviews/reviewClient";
 import { ReviewList } from "@/components/prompts/ReviewList";
 import { ReviewForm } from "@/components/prompts/ReviewForm";
@@ -293,6 +296,12 @@ export default function PromptDetailPage() {
                     Unavailable
                   </Badge>
                 )}
+{prompt.contentHash && (
+                  <Badge className="border-amber-500/20 bg-amber-500/10 text-amber-400">
+                    <ShieldCheck className="mr-1 h-3 w-3" />
+                    Verified
+                  </Badge>
+                )}
                 {alreadyOwned && (
                   <Badge className="border-blue-500/20 bg-blue-500/10 text-blue-400">
                     <Check className="mr-1 h-3 w-3" />
@@ -309,6 +318,11 @@ export default function PromptDetailPage() {
                 <p className="mt-3 text-sm leading-7 text-slate-400">
                   {prompt.previewText}
                 </p>
+                {prompt.description && (
+                  <div className="mt-4">
+                    <MarkdownContent>{prompt.description}</MarkdownContent>
+                  </div>
+                )}
               </div>
 
               {/* Quick stats */}
@@ -323,7 +337,15 @@ export default function PromptDetailPage() {
                       ? `${prompt.creator.slice(0, 6)}…${prompt.creator.slice(-4)}`
                       : prompt.creator}
                   </Link>
+                <span className="font-semibold text-white">
+                  {formatPriceLabel(prompt.priceStroops)}
                 </span>
+                {"revision" in prompt && prompt.revision !== undefined && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <History className="h-3.5 w-3.5" />
+                    v{prompt.revision}
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-1.5">
                   <ShoppingBag className="h-3.5 w-3.5" />
                   {prompt.salesCount} sold

@@ -3,6 +3,10 @@ import { Link } from "react-router-dom";
 import { WalletContext } from "../../providers/WalletProvider";
 import { useAsyncTransaction } from "../../components/useAsyncTransaction";
 import { PromptHashClient } from "../../lib/stellar/promptHashClient";
+import {
+  InsufficientXlmBalanceError,
+  UserRejectedTransactionError,
+} from "../../lib/stellar/xlmPaymentGateway";
 import { unlockPrompt } from "../../lib/prompts/unlock";
 import { Skeleton } from "../../components/Skeleton";
 import { StatusBanner } from "../../components/StatusBanner";
@@ -26,6 +30,7 @@ import {
   Hash,
   Share2,
   Flag,
+  AlertTriangle,
 } from "lucide-react";
 
 // Small inline copy button used in the receipt reference details
@@ -383,10 +388,50 @@ export const PromptModal: React.FC<PromptModalProps> = ({
       }
       
       setStatus("AWAITING_APPROVAL");
-      const mockHash = "tx_" + Math.random().toString(16).slice(2, 14);
-      setTxHash(mockHash);
+
+      // Fetch the prompt price so we can pass the exact amount to the contract
+      let priceStroops: bigint | undefined;
+      try {
+        const promptData = await PromptHashClient.getPrompt(
+          browserStellarConfig,
+          BigInt(itemId),
+        );
+        priceStroops = promptData.priceStroops;
+      } catch {
+        // If the fetch fails we fall back to mock mode — priceStroops stays
+        // undefined and the client will use the mock path.
+      }
+
+      // Build a wallet signer that satisfies WalletTransactionSigner
+      const signer = wallet.signTransaction
+        ? { signTransaction: wallet.signTransaction }
+        : undefined;
+
+      let result: { txHash: string; success: boolean };
+      try {
+        result = await PromptHashClient.purchasePrompt(itemId, wallet.address, {
+          signer,
+          priceStroops,
+          config: browserStellarConfig,
+        });
+      } catch (err) {
+        // Surface typed XLM errors with targeted messages
+        if (err instanceof InsufficientXlmBalanceError) {
+          throw new Error(
+            "Insufficient XLM balance. Please fund your wallet and try again.",
+          );
+        }
+        if (err instanceof UserRejectedTransactionError) {
+          throw new Error(
+            "Transaction cancelled — you rejected the request in your wallet.",
+          );
+        }
+        throw err;
+      }
+
+      setTxHash(result.txHash);
       setStatus("CONFIRMING");
-      return await PromptHashClient.purchasePrompt(itemId, wallet.address);
+      return result;
     },
     {
       onSuccess: (data) => {
@@ -473,20 +518,44 @@ export const PromptModal: React.FC<PromptModalProps> = ({
                     <ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0" />
                     <div>
                       <h4 className="text-sm font-bold text-white">
-                        Secure Purchase
+                        Secure XLM Payment
                       </h4>
                       <p className="text-xs text-slate-400 leading-relaxed mt-1">
-                        Funds are held by the contract until access rights are
-                        minted. Platform fee is included in the price.
+                        Payment is processed on-chain via the Stellar network.
+                        Funds are transferred atomically — the contract records
+                        your access rights in the same transaction.
                       </p>
                     </div>
                   </div>
 
                   {status === "ERROR" && purchaseError && (
-                    <StatusBanner
-                      status="error"
-                      message={purchaseError.message}
-                    />
+                    <>
+                      <StatusBanner
+                        status="error"
+                        message={purchaseError.message}
+                      />
+                      {/* Targeted hint for insufficient balance */}
+                      {purchaseError.message
+                        .toLowerCase()
+                        .includes("insufficient") && (
+                        <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
+                          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+                          <p className="text-xs text-amber-300 leading-relaxed">
+                            Your wallet doesn't have enough XLM. You can fund a
+                            testnet account using{" "}
+                            <a
+                              href="https://laboratory.stellar.org/#account-creator?network=test"
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline hover:text-amber-200"
+                            >
+                              Stellar Laboratory
+                            </a>{" "}
+                            or the Friendbot faucet.
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   <button
@@ -497,7 +566,16 @@ export const PromptModal: React.FC<PromptModalProps> = ({
                     }
                     className="group w-full h-14 bg-white text-slate-950 hover:bg-emerald-400 font-black rounded-2xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Confirm & Purchase <Wallet className="w-4 h-4" />
+                    {isPurchasing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Processing…
+                      </>
+                    ) : (
+                      <>
+                        Pay with XLM <Wallet className="w-4 h-4" />
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -518,7 +596,7 @@ export const PromptModal: React.FC<PromptModalProps> = ({
                 <div className="py-6 text-center" role="status" aria-live="polite">
                   <StatusBanner
                     status="pending"
-                    message="Broadcasting to Stellar..."
+                    message="Broadcasting XLM payment to Stellar network..."
                   />
                   {txHash && (
                     <a
@@ -527,7 +605,7 @@ export const PromptModal: React.FC<PromptModalProps> = ({
                       rel="noreferrer"
                       className="inline-flex items-center gap-2 mt-6 text-xs text-slate-500 hover:text-emerald-400 font-mono transition-colors"
                     >
-                      View Transaction <ExternalLink className="h-3 w-3" />
+                      View on Stellar Expert <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
                 </div>

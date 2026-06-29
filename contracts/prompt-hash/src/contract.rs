@@ -109,7 +109,7 @@ impl PromptHashTrait for PromptHashContract {
             asset: listing.asset.clone(),
             active: true,
             sales_count: 0,
-            max_supply: 0,
+            max_supply: listing.max_supply,
             expires_at: listing.expires_at,
             splits: listing.splits,
             revision: 0,
@@ -611,6 +611,17 @@ impl PromptHashTrait for PromptHashContract {
         Storage::get_xlm_address(&env)
     }
 
+    fn get_prompts_by_ids(env: Env, prompt_ids: Vec<u128>) -> Result<Vec<Prompt>, Error> {
+        let mut prompts = Vec::new(&env);
+        for i in 0..prompt_ids.len() {
+            let id = prompt_ids.get(i).unwrap();
+            if let Ok(prompt) = Storage::require_prompt(&env, id) {
+                prompts.push_back(prompt);
+            }
+        }
+        Ok(prompts)
+    }
+
     #[only_owner]
     fn set_pause_status(env: Env, paused: bool) -> Result<(), Error> {
         Storage::set_pause_status(&env, paused);
@@ -671,15 +682,24 @@ impl PromptHashTrait for PromptHashContract {
     #[only_owner]
     fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), Error> {
         env.deployer().update_current_contract_wasm(new_wasm_hash);
+        // Extend instance storage TTL for the new contract deployment
         env.storage().instance().extend_ttl(
             super::storage::PERSISTENT_LIFETIME_THRESHOLD,
             super::storage::PERSISTENT_BUMP_AMOUNT,
         );
+        // Bulk-extend persistent entries so no data is lost after upgrade
+        Storage::extend_all_ttl(&env);
         Ok(())
     }
 
     fn extend_ttl(env: Env, key: DataKey) -> Result<(), Error> {
         Storage::extend_key_ttl(&env, &key);
+        Ok(())
+    }
+
+    #[only_owner]
+    fn extend_all_ttl(env: Env) -> Result<(), Error> {
+        Storage::extend_all_ttl(&env);
         Ok(())
     }
 }

@@ -5,6 +5,8 @@ import {
   Activity,
   BarChart3,
   Coins,
+  Eye,
+  History,
   PackageCheck,
   ShoppingBag,
   TrendingUp,
@@ -271,6 +273,17 @@ export function CreatorDashboard({ walletAddress }: CreatorDashboardProps) {
     enabled: Boolean(walletAddress),
   });
 
+  const { data: previewStats } = useQuery({
+    queryKey: ["preview-stats", walletAddress],
+    queryFn: async () => {
+      const res = await fetch(`/api/prompts/preview/stats?walletAddress=${encodeURIComponent(walletAddress)}`);
+      if (!res.ok) return null;
+      return res.json() as Promise<{ totalPreviews: number }>;
+    },
+    staleTime: 30_000,
+    enabled: Boolean(walletAddress),
+  });
+
   const prompts = useMemo(
     () => allPrompts.filter((p) => p.creator === walletAddress),
     [allPrompts, walletAddress],
@@ -348,7 +361,7 @@ export function CreatorDashboard({ walletAddress }: CreatorDashboardProps) {
   return (
     <div className="space-y-6">
       {/* Metric cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <MetricCard
           title="Active listings"
           value={metrics.active}
@@ -376,6 +389,13 @@ export function CreatorDashboard({ walletAddress }: CreatorDashboardProps) {
           icon={<TrendingUp className="h-4 w-4" />}
           accent="purple"
           description={`gross ${metrics.grossRevenue.toFixed(2)} XLM`}
+        />
+        <MetricCard
+          title="Preview opens"
+          value={previewStats?.totalPreviews ?? 0}
+          icon={<Eye className="h-4 w-4" />}
+          accent="cyan"
+          description="total preview views"
         />
       </div>
 
