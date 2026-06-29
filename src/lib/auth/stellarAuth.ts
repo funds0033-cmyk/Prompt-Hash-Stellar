@@ -127,14 +127,9 @@ export interface AuthContextType {
   status: AuthStatus;
   session: AuthSession | null;
   error: string | null;
-  /**
-   * Trigger the full nonce → sign → verify flow.
-   * Requires a connected wallet (address + signMessage function).
-   */
-  // eslint-disable-next-line no-unused-vars
+  /** Trigger the full nonce → sign → verify flow. */
   authenticate: (
     address: string,
-    // eslint-disable-next-line no-unused-vars
     signMessage: (msg: string) => Promise<{ signedMessage?: string } | string>,
   ) => Promise<void>;
   /** Clear the session and remove the auth cookie. */

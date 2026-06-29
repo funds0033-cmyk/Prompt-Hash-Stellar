@@ -24,14 +24,6 @@ import { AUTH_COOKIE_NAME } from "../../../api/auth/verify";
 import { apiError, ErrorCode } from "../api/errorCodes";
 import type { AssetRequirement, AssetAccessResult } from "./stellarAuth";
 
-// ─── Request augmentation ─────────────────────────────────────────────────────
-
-declare module "*.ts" {
-  interface AuthenticatedRequest {
-    authAddress: string;
-  }
-}
-
 // ─── Cookie parsing ───────────────────────────────────────────────────────────
 
 function extractTokenFromRequest(req: any): string | null {

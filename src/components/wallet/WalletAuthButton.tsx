@@ -48,17 +48,21 @@ export function WalletAuthButton({ className, onAuthenticated }: WalletAuthButto
       // Open the StellarWalletsKit selection modal (Freighter, Albedo, xBull…)
       await new Promise<void>((resolve, reject) => {
         // The kit modal fires onComplete when the user selects a wallet
-        (wallet as any).openModal?.({
+        const modal = (wallet as any).openModal?.({
           onWalletSelected: async (option: { id: string }) => {
             try {
               await wallet.connect(option.id);
               resolve();
             } catch (err) {
-              reject(err);
+              reject(err as Error);
             }
           },
-          onClosed: () => resolve(), // user closed modal without selecting
-        }) ?? wallet.connect("freighter").then(resolve).catch(reject);
+          onClosed: () => resolve(),
+        });
+        // Fallback for wallets that don't support modal
+        if (!modal) {
+          wallet.connect("freighter").then(resolve).catch(reject);
+        }
       });
     } catch (err) {
       const classified = classifyWalletError(err);
