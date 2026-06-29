@@ -3014,3 +3014,145 @@ fn test_resolved_dispute_cannot_be_resolved_twice() {
         other => panic!("expected DisputeResolved, got {:?}", other),
     }
 }
+
+// ─── Issue #293: Additional edge-case tests ──────────────────────────────────
+
+#[test]
+fn test_max_supply_enforced_on_purchase() {
+    let env: Env = Default::default();
+    let context = setup(&env);
+    let client = PromptHashContractClient::new(&env, &context.contract);
+    let xlm_client = token::StellarAssetClient::new(&env, &context.xlm);
+    let creator = Address::generate(&env);
+    let buyer1 = Address::generate(&env);
+    let buyer2 = Address::generate(&env);
+    let price = 5_000;
+
+    let prompt_id = create_prompt(&env, &client, &creator, "Limited Supply", price, &context.xlm);
+
+    // Set max supply to 1
+    client.set_prompt_max_supply(&creator, &prompt_id, &1);
+
+    // First purchase succeeds
+    fund_buyer(&xlm_client, &buyer1, &context.contract, price);
+    client.buy_prompt(&buyer1, &prompt_id, &None::<Address>, &price, &None::<Bytes>);
+
+    // Second purchase fails — max supply reached
+    fund_buyer(&xlm_client, &buyer2, &context.contract, price);
+    let res = client.try_buy_prompt(&buyer2, &prompt_id, &None::<Address>, &price, &None::<Bytes>);
+    match res {
+        Err(Ok(Error::MaxSupplyReached)) => {}
+        other => panic!("expected MaxSupplyReached, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_max_supply_zero_means_unlimited() {
+    let env: Env = Default::default();
+    let context = setup(&env);
+    let client = PromptHashContractClient::new(&env, &context.contract);
+    let xlm_client = token::StellarAssetClient::new(&env, &context.xlm);
+    let creator = Address::generate(&env);
+    let price = 5_000;
+
+    let prompt_id = create_prompt(&env, &client, &creator, "Unlimited", price, &context.xlm);
+
+    // Default max_supply is 0 (unlimited) — multiple purchases should succeed
+    for _ in 0..5 {
+        let buyer = Address::generate(&env);
+        fund_buyer(&xlm_client, &buyer, &context.contract, price);
+        client.buy_prompt(&buyer, &prompt_id, &None::<Address>, &price, &None::<Bytes>);
+    }
+
+    let prompt = client.get_prompt(&prompt_id).unwrap();
+    assert_eq!(prompt.sales_count, 5);
+}
+
+#[test]
+fn test_dispute_rejection_does_not_refund() {
+    let env: Env = Default::default();
+    let context = setup(&env);
+    let client = PromptHashContractClient::new(&env, &context.contract);
+    let xlm_client = token::StellarAssetClient::new(&env, &context.xlm);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let price = 10_000;
+    let prompt_id = create_prompt(&env, &client, &creator, "Dispute Reject", price, &context.xlm);
+
+    fund_buyer(&xlm_client, &buyer, &context.contract, price);
+    client.buy_prompt(&buyer, &prompt_id, &None::<Address>, &price, &None::<Bytes>);
+
+    let balance_before = xlm_client.balance(&buyer);
+
+    client.open_dispute(
+        &buyer,
+        &prompt_id,
+        &crate::types::DisputeReason::InvalidEncryptedPayload,
+    );
+
+    // Admin rejects the dispute (refund = false)
+    client.resolve_dispute(&context.admin, &prompt_id, &buyer, &false);
+
+    // Buyer should NOT receive a refund
+    let balance_after = xlm_client.balance(&buyer);
+    assert_eq!(balance_before, balance_after);
+
+    // Buyer should still have access
+    assert!(client.has_access(&buyer, &prompt_id));
+}
+
+#[test]
+fn test_only_owner_can_set_pause_status() {
+    let env: Env = Default::default();
+    let context = setup(&env);
+    let client = PromptHashContractClient::new(&env, &context.contract);
+    let non_admin = Address::generate(&env);
+
+    let res = client.try_set_pause_status(&non_admin, &true);
+    match res {
+        Err(Ok(Error::Unauthorized)) => {}
+        other => panic!("expected Unauthorized, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_only_owner_can_set_fee_wallet() {
+    let env: Env = Default::default();
+    let context = setup(&env);
+    let client = PromptHashContractClient::new(&env, &context.contract);
+    let non_admin = Address::generate(&env);
+    let new_wallet = Address::generate(&env);
+
+    let res = client.try_set_fee_wallet(&non_admin, &new_wallet);
+    match res {
+        Err(Ok(Error::Unauthorized)) => {}
+        other => panic!("expected Unauthorized, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_lease_price_is_40_percent_of_listing() {
+    let env: Env = Default::default();
+    let context = setup(&env);
+    let client = PromptHashContractClient::new(&env, &context.contract);
+    let xlm_client = token::StellarAssetClient::new(&env, &context.xlm);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let price = 100_000;
+
+    let prompt_id = create_prompt(&env, &client, &creator, "Lease Price", price, &context.xlm);
+
+    // Fund buyer with enough for lease (40% of price = 40_000)
+    let lease_price = price * 4_000 / 10_000; // 40_000
+    fund_buyer(&xlm_client, &buyer, &context.contract, lease_price);
+
+    let creator_balance_before = xlm_client.balance(&creator);
+
+    client.lease_prompt(&buyer, &prompt_id, &3600); // 1 hour lease
+
+    // Creator should receive lease_price minus fee
+    let fee_pct = client.get_fee_percentage() as i128;
+    let expected_creator_amount = lease_price - (lease_price * fee_pct / 10_000);
+    let creator_balance_after = xlm_client.balance(&creator);
+    assert_eq!(creator_balance_after - creator_balance_before, expected_creator_amount);
+}
