@@ -57,7 +57,7 @@ interface UseAsyncTransactionOptions<TData, TVariables> {
  
 
 export function useAsyncTransaction<TData, TVariables = void>(
-  // eslint-disable-next-line no-unused-vars
+   
   mutationFn: (variables: TVariables) => Promise<TData>,
   options?: UseAsyncTransactionOptions<TData, TVariables>
 ) {
