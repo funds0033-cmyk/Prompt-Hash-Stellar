@@ -29,7 +29,6 @@ import { getPrompt, hasAccess } from "@/lib/stellar/promptHashClient";
 import { stroopsToXlmString, formatPriceLabel } from "@/lib/stellar/format";
 import { copyToClipboard } from "@/lib/clipboard/secureClipboard";
 import { usePageMeta } from "@/lib/seo/usePageMeta";
-import { PromptRevisionHistory } from "@/components/analytics/PromptRevisionHistory";
 import { MarkdownContent } from "@/components/MarkdownContent";
 import { ReviewClient } from "@/lib/reviews/reviewClient";
 import { ReviewList } from "@/components/prompts/ReviewList";

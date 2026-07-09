@@ -134,45 +134,42 @@ PromptHash Stellar can serve as a reusable reference implementation for:
 
 ## Technical Architecture
 
-PromptHash Stellar currently uses a three-part architecture:
+PromptHash Stellar uses a three-part architecture where the Soroban smart contract is the **absolute, single source of truth** for prompt ownership, purchase records, and access rights.
 
-### 1. Soroban smart contract
+### 1. Soroban smart contract (authoritative source of truth)
 
 Located in `contracts/prompt-hash`.
 
-Responsibilities:
+The contract governs **all** stateful operations. Off-chain systems must never override or duplicate these responsibilities:
 
-- prompt creation
-- price updates
-- listing activation/deactivation
-- purchase tracking
-- creator and buyer prompt indexing
-- fee wallet configuration
-- contract upgrade path
+| Operation | On-chain method | Off-chain role |
+|-----------|----------------|----------------|
+| Prompt creation | `create_prompt` | Index & cache (read-only) |
+| Price updates | `update_prompt_price` | None |
+| Listing state | `set_prompt_sale_status` | Index & cache (read-only) |
+| Purchase & access | `buy_prompt` / `has_access` | Verify via RPC simulation |
+| Fee config | `set_fee_percentage` / `set_fee_wallet` | None |
+| License transfer | `transfer_license` | Index & cache (read-only) |
+| Disputes | `open_dispute` / `resolve_dispute` | Off-chain moderation data only |
 
-Key methods implemented today:
-
-- `create_prompt`
-- `buy_prompt`
-- `has_access`
-- `get_prompt`
-- `get_all_prompts`
-- `get_prompts_by_creator`
-- `get_prompts_by_buyer`
-- `update_prompt_price`
-- `set_prompt_sale_status`
+**Key invariant**: No off-chain route may grant, revoke, or modify access rights. The `api/prompts/unlock.ts` endpoint calls `has_access` via Soroban RPC simulation — it trusts the contract, not the database.
 
 ### 2. Frontend application
 
 Located in `src`.
 
-The frontend handles wallet connection, client-side encryption before listing, marketplace browsing, contract-backed purchases, creator dashboard actions, and buyer unlock requests.
+The frontend handles wallet connection, client-side encryption before listing, marketplace browsing, contract-backed purchases, creator dashboard actions, and buyer unlock requests. All state-affirming operations (create, purchase, transfer) go through the smart contract; the frontend never writes directly to the off-chain index.
 
 ### 3. Unlock and API layer
 
-Implemented through `api/auth/challenge.ts` and `api/prompts/unlock.ts`, with an additional Express workspace under `server/`.
+Two authoritative serverless endpoints:
 
-The serverless unlock flow handles challenge token issuance, signature verification, on-chain access verification, key unwrap, prompt decryption, and plaintext integrity validation.
+| Endpoint | Responsibility |
+|----------|---------------|
+| `api/auth/challenge.ts` | Issue HMAC-signed, time-bound challenge tokens |
+| `api/prompts/unlock.ts` | Verify signature + on-chain `has_access` → decrypt → integrity check |
+
+A secondary Express workspace (`server/`) provides **read-only indexing**, preview analytics, review storage, and webhook dispatch. It is explicitly forbidden from originating prompt state changes. Write routes that duplicated `create_prompt`/`set_prompt_sale_status` have been removed — see `server/src/routes/promptRoutes.ts` for the deprecation ledger.
 
 #### Observability & Production Hardening
 
@@ -400,6 +397,103 @@ This repository is licensed under the Apache License 2.0. See `LICENSE`.
 ## Maintainer
 
 Maintained by the PromptHash Stellar team for Drip Wave submission and ongoing open-source development.
+
+## Project Structure
+
+```
+├── api/                    # Vercel serverless functions
+│   ├── auth/               # Challenge token issuance & secret rotation
+│   ├── prompts/            # Unlock, versioning, and listing endpoints
+│   ├── reviews/            # Review submission endpoints
+│   ├── webhooks/           # Webhook integration endpoints
+│   ├── health.ts           # Service health check
+│   └── status.ts           # Multi-service status dashboard
+├── contracts/              # Soroban smart contracts (Rust)
+├── server/                 # Express backend (read-only indexing, analytics)
+│   └── src/
+│       ├── controllers/    # Route handlers
+│       ├── db/             # Database connection
+│       ├── models/         # Mongoose schemas
+│       ├── routes/         # Express route definitions
+│       ├── services/       # Cache, backup, listing validation
+│       └── tests/          # Server integration tests
+├── src/                    # React frontend (Vite + TypeScript)
+│   ├── components/         # Reusable UI components
+│   ├── hooks/              # Custom React hooks (useTheme, wallet, etc.)
+│   ├── lib/                # Core logic (crypto, stellar, auth, validation)
+│   ├── pages/              # Route pages (browse, sell, profile, etc.)
+│   ├── providers/          # React context providers
+│   └── test/               # Frontend test utilities & fixtures
+├── docs/                   # Additional documentation
+├── scripts/                # Build & setup scripts
+├── eslint.config.js        # ESLint configuration
+├── tailwind.config.js      # Tailwind CSS configuration
+└── vite.config.ts          # Vite build configuration
+```
+
+## API Endpoints
+
+### Vercel Serverless Functions (`/api/*`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/health` | Service health check with indexer state |
+| GET | `/api/status` | Multi-service status (RPC, Horizon, unlock) |
+| POST | `/api/auth/challenge` | Issue time-bound challenge token for wallet verification |
+| POST | `/api/auth/rotate-secret` | Rotate challenge token secrets with grace period |
+| GET | `/api/prompts` | List published prompts (optional `category` & `walletAddress` filters) |
+| POST | `/api/prompts/unlock` | Verify wallet access and return decrypted prompt |
+| GET | `/api/prompts/version` | Get versioned prompt content for a buyer |
+
+### Express Server (`/api/*` on port 5000)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/prompts` | List published prompts (cached, filtered) |
+| GET | `/api/prompts/buyer/:wallet/owned` | Get prompts owned by wallet |
+| GET | `/api/prompts/buyer/:wallet/saved` | Get prompts saved by wallet |
+| GET | `/api/prompts/creator/:wallet/drafts` | Get creator draft prompts |
+| POST | `/api/prompts/preview` | Record prompt preview |
+| GET | `/api/prompts/preview/stats` | Get preview analytics for creator |
+| POST | `/api/prompts/reports` | Submit prompt report |
+| GET | `/api/prompts/reports` | Get prompt reports (admin) |
+| GET | `/api/search` | Search prompts and users |
+| POST | `/api/webhooks` | Register webhook subscriptions |
+
+## Dark Mode
+
+The application supports light, dark, and system-preference themes:
+
+- **Theme persistence**: Your selection is stored in `localStorage` as `theme-preference`
+- **System-aware**: When set to "System", the UI follows your OS color scheme preference
+- **Toggle**: Use the theme switch icon in the top navigation bar
+- **CSS variables**: Theme colors are defined as CSS custom properties in `src/index.css` with `.dark` class overrides
+- **Tailwind integration**: Dark mode uses Tailwind's `class` strategy — add the `dark:` prefix for theme-specific styles
+
+Toggle between Light, Dark, and System modes from the dropdown in the navigation bar. The setting persists across sessions.
+
+## Linting & Code Quality
+
+The project uses ESLint with TypeScript support for code quality:
+
+```bash
+# Run the linter
+npm run lint
+
+# Auto-fix fixable issues
+npm run lint -- --fix
+```
+
+Key linting rules:
+- Unused variables are flagged as warnings
+- Underscore-prefixed parameters (`_param`) are exempt from unused-variable checks
+- TypeScript strict mode is enabled for type safety
+- Prettier handles code formatting (`npm run format`)
+
+Run both checks before opening a pull request:
+```bash
+npm run lint && npm run typecheck
+```
 
 ## GitHub Preparation
 

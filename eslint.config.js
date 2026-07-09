@@ -33,9 +33,9 @@ export default tseslint.config(
       globals: globals.browser,
     },
     rules: {
-      // Turn all rules to warnings instead of errors
-      "no-unused-vars": "warn",
-      "@typescript-eslint/no-unused-vars": "warn",
+      // Disable base rule for TS files — @typescript-eslint/no-unused-vars is the source of truth
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
       "@typescript-eslint/require-await": "off",
       // Or disable specific annoying rules
       "react/prop-types": "off",

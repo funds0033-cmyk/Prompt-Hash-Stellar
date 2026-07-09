@@ -65,6 +65,7 @@ import { browserStellarConfig } from "../../lib/stellar/browserConfig";
 import { stroopsToXlmString } from "../../lib/stellar/format";
 import { NetworkMismatchBanner } from "../../components/wallet/NetworkMismatchBanner";
 import { detectNetworkMismatch } from "../../lib/wallet/networkDetection";
+import { mapWalletError, type MappedWalletError } from "../../lib/stellar/tx";
 
 export type BuyerStatus =
   | "IDLE"
@@ -528,35 +529,22 @@ export const PromptModal: React.FC<PromptModalProps> = ({
                     </div>
                   </div>
 
-                  {status === "ERROR" && purchaseError && (
-                    <>
-                      <StatusBanner
-                        status="error"
-                        message={purchaseError.message}
-                      />
-                      {/* Targeted hint for insufficient balance */}
-                      {purchaseError.message
-                        .toLowerCase()
-                        .includes("insufficient") && (
-                        <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
-                          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
-                          <p className="text-xs text-amber-300 leading-relaxed">
-                            Your wallet doesn't have enough XLM. You can fund a
-                            testnet account using{" "}
-                            <a
-                              href="https://laboratory.stellar.org/#account-creator?network=test"
-                              target="_blank"
-                              rel="noreferrer"
-                              className="underline hover:text-amber-200"
-                            >
-                              Stellar Laboratory
-                            </a>{" "}
-                            or the Friendbot faucet.
+                  {status === "ERROR" && purchaseError && (() => {
+                    const mapped: MappedWalletError = mapWalletError(purchaseError);
+                    return (
+                      <div className="space-y-3">
+                        <StatusBanner
+                          status="error"
+                          message={mapped.userMessage}
+                        />
+                        {mapped.recoveryHint && (
+                          <p className="text-xs text-slate-400 px-1">
+                            {mapped.recoveryHint}
                           </p>
-                        </div>
-                      )}
-                    </>
-                  )}
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <button
                     onClick={() => runPurchase().catch(() => {})}
@@ -632,12 +620,22 @@ export const PromptModal: React.FC<PromptModalProps> = ({
                     }
                   />
 
-                  {unlockError && (
-                    <UnlockErrorBanner
-                      message={unlockError.message}
-                      onRetry={() => runUnlock(txHash || "existing").catch(() => {})}
-                    />
-                  )}
+                  {unlockError && (() => {
+                    const mapped: MappedWalletError = mapWalletError(unlockError);
+                    return (
+                      <div className="space-y-3">
+                        <UnlockErrorBanner
+                          message={mapped.userMessage}
+                          onRetry={() => runUnlock(txHash || "existing").catch(() => {})}
+                        />
+                        {mapped.recoveryHint && (
+                          <p className="text-xs text-slate-400 px-1">
+                            {mapped.recoveryHint}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <button
                     onClick={() => runUnlock(txHash || "existing").catch(() => {})}
