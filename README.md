@@ -1,5 +1,10 @@
 # PromptHash Stellar
 
+[![CI](https://github.com/Obiajulu-gif/Prompt-Hash-Stellar/actions/workflows/ci.yml/badge.svg)](https://github.com/Obiajulu-gif/Prompt-Hash-Stellar/actions/workflows/ci.yml)
+[![Frontend CI](https://github.com/Obiajulu-gif/Prompt-Hash-Stellar/actions/workflows/frontend.yml/badge.svg)](https://github.com/Obiajulu-gif/Prompt-Hash-Stellar/actions/workflows/frontend.yml)
+[![Contracts CI](https://github.com/Obiajulu-gif/Prompt-Hash-Stellar/actions/workflows/contracts.yml/badge.svg)](https://github.com/Obiajulu-gif/Prompt-Hash-Stellar/actions/workflows/contracts.yml)
+[![Backend CI](https://github.com/Obiajulu-gif/Prompt-Hash-Stellar/actions/workflows/backend.yml/badge.svg)](https://github.com/Obiajulu-gif/Prompt-Hash-Stellar/actions/workflows/backend.yml)
+
 PromptHash Stellar is a Soroban-based marketplace for selling reusable AI prompt licenses with XLM payments and wallet-verified unlocks.
 
 ## Overview
@@ -135,6 +140,8 @@ PromptHash Stellar can serve as a reusable reference implementation for:
 ## Technical Architecture
 
 PromptHash Stellar uses a three-part architecture where the Soroban smart contract is the **absolute, single source of truth** for prompt ownership, purchase records, and access rights.
+
+> For an end-to-end visual guide with diagrams covering the listing, purchase, and unlock flows, the encryption model, wallet verification, and every environment variable, see [docs/architecture-overview.md](docs/architecture-overview.md).
 
 ### 1. Soroban smart contract (authoritative source of truth)
 
@@ -571,3 +578,33 @@ Dependabot opens pull requests every Monday for:
 4. Merge the PR; Dependabot will rebase any remaining open PRs automatically.
 
 If a Dependabot PR introduces a breaking change, close it and pin the old version in `package.json` or `Cargo.toml` until the issue is resolved upstream.
+
+
+## Documentation
+
+### Provenance Tracking System
+
+PromptHash Stellar includes a comprehensive provenance tracking system that maintains complete audit trails for all prompts:
+
+- **Import Tracking**: Track prompts from 9 different sources (API, file upload, blockchain, bulk import, etc.)
+- **Transformation History**: Record all changes and modifications with full actor metadata
+- **Lineage Management**: Track parent-child relationships and derivation chains (fork/remix)
+- **Update Preservation**: Maintain complete version history with automatic diff generation
+- **Admin Dashboard**: Visual interface for monitoring imports, batches, and provenance data
+
+For complete documentation, see:
+- [Provenance Tracking Guide](./docs/PROVENANCE_TRACKING.md) - Complete feature documentation
+- [Integration Guide](./server/src/middleware/PROVENANCE_UPDATE_GUIDE.md) - Developer integration examples
+
+**Key Features:**
+- 9 import source types and 9 transformation types
+- 20+ service methods for comprehensive tracking
+- 16+ API endpoints for querying and managing provenance
+- Automatic middleware integration for seamless tracking
+- Integration with existing PromptRelation system (Issue #753)
+- React admin dashboard with statistics and search
+- 95+ comprehensive tests
+
+**Related Issues:**
+- [Issue #929](https://github.com/Obiajulu-gif/Prompt-Hash-Stellar/issues/929) - Provenance tracking implementation
+- [Issue #753](https://github.com/Obiajulu-gif/Prompt-Hash-Stellar/issues/753) - Prompt-to-prompt relationships

@@ -33,6 +33,7 @@ import { TipButton } from "@/components/TipButton";
 import { UnlockExplainer, type UnlockState } from "@/components/UnlockExplainer";
 import { WebhookSettings } from "@/components/WebhookSettings";
 import { CreatorDashboard } from "@/components/analytics/CreatorDashboard";
+import { SellerAnalyticsWidget } from "@/components/analytics/SellerAnalyticsWidget";
 import { PostVersionUpdate } from "@/components/PostVersionUpdate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ import {
   unsavePromptListing,
   type SavedPromptListing,
 } from "@/lib/prompts/library";
+import { canCloneListing, hasExistingDraft, seedCloneDraft } from "@/lib/prompts/cloneListing";
 import { shortenAddress } from "@/lib/utils";
 import { stellarNetwork } from "@/lib/env";
 import { connectWallet } from "@/util/wallet";
@@ -613,6 +615,27 @@ function CreatedPromptCard({
               )}
               {isActive ? "Pause listing" : "Reactivate"}
             </Button>
+            {canCloneListing(prompt, walletAddress) && (
+              <Link
+                to="/sell"
+                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md border border-white/15 bg-white/[0.03] px-4 text-sm font-medium text-white transition-colors hover:bg-white/10"
+                onClick={(event) => {
+                  if (
+                    hasExistingDraft(walletAddress) &&
+                    !window.confirm(
+                      "Cloning this listing will replace your current unsaved draft. Continue?",
+                    )
+                  ) {
+                    event.preventDefault();
+                    return;
+                  }
+                  seedCloneDraft(prompt, walletAddress);
+                }}
+              >
+                <Copy className="h-4 w-4" />
+                Clone as new listing
+              </Link>
+            )}
           </div>
           <div className="mt-4">
             <PostVersionUpdate
@@ -1094,7 +1117,10 @@ export default function ProfilePage() {
                   <TabsContent value="created" className="mt-0 space-y-6">
                     {/* Creator activity dashboard — metrics, revenue, top performers (#213) */}
                     {!isPublicView && address && (
-                      <CreatorDashboard walletAddress={address} />
+                      <div className="space-y-6">
+                        <CreatorDashboard walletAddress={address} />
+                        <SellerAnalyticsWidget walletAddress={address} />
+                      </div>
                     )}
 
                     {createdQuery.isLoading ? (
